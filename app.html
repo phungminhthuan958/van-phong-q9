@@ -215,7 +215,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127d";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127e";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -233,6 +233,12 @@ const me = await requireApproved();
 if (!["nhanvien","ctv"].includes(me.kind) && me.role !== "admin") location.replace("index.html");
 const isAdmin = me.role === "admin";
 if (!me.demo) setShareRef(me.id);
+// Sales/CTV gửi căn: bài đăng ghi SĐT của chính sales đó (không ghi Admin) để giữ khách cho sales.
+// Khách do sales giới thiệu: nút liên hệ trên web cũng là sales đó.
+const digits=v=>String(v||"").replace(/[^0-9]/g,"");
+const IS_SELLER = me.role!=="admin" && ["ctv","nhanvien"].includes(me.kind);
+const SHARE_CONTACT = IS_SELLER ? { phone: digits(me.phone), facebook: CONTACT.facebook, label: "" } : { ...CONTACT, label: "Admin" };
+const VIEW_CONTACT = (me.kind==="khach" && digits(me.sales_phone)) ? { phone: digits(me.sales_phone), facebook: CONTACT.facebook, label: "Sales" + (me.sales_ref ? " " + me.sales_ref : "") } : { ...CONTACT, label: "Admin" };
 const canEdit = isAdmin || ["nhanvien","ctv"].includes(me.kind);   // Sales/CTV và nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn
 $("#demoNote").hidden = !me.demo;
 $("#who").innerHTML = `<b>${esc(me.full_name || me.email)}</b> · ${isAdmin ? "Quản trị" : esc(deptOf(me.dept)?.name || "Nhân viên")}`;
@@ -308,9 +314,9 @@ $("#units").addEventListener("click", async e => {
     u.hot = hot; renderUnits(); toast(hot ? `${u.code}: đã đưa lên văn phòng 3D` : `${u.code}: đã gỡ khỏi văn phòng 3D`);
   }
   else if (b.hasAttribute("data-view")) openView(u);
-  else if (b.dataset.share) shareUnit(u, CONTACT, b.dataset.share, toast);
+  else if (b.dataset.share) shareUnit(u, SHARE_CONTACT, b.dataset.share, toast);
   else if (b.hasAttribute("data-post")) {
-    toast(await copyText(postText(u, CONTACT)) ? "Đã chép bài đăng, dán vào Zalo/Facebook" : "Trình duyệt chặn chép, bạn thử lại");
+    toast(await copyText(postText(u, SHARE_CONTACT)) ? "Đã chép bài đăng, dán vào Zalo/Facebook" : "Trình duyệt chặn chép, bạn thử lại");
   } else if (b.hasAttribute("data-edit")) openForm(u);
   else if (b.hasAttribute("data-del")) {
     if (b.dataset.confirm !== "1") { b.dataset.confirm="1"; b.textContent="Bấm lần nữa để xoá"; setTimeout(()=>{ b.dataset.confirm=""; b.textContent="Xoá căn này"; },3000); return; }
@@ -432,8 +438,8 @@ $("#view").addEventListener("click",async e=>{
   if(e.target.id==="vwMain") return window.open(e.target.src,"_blank","noopener");
   const b=e.target.closest("[data-vw]"); if(!b) return; const u=VIEWING, a=b.dataset.vw;
   if(a==="edit"){ closeView(); openForm(u); $("#unitForm").scrollIntoView({behavior:"smooth",block:"start"}); }
-  else if(a==="post") toast(await copyText(postText(u, CONTACT)) ? "Đã chép bài đăng" : "Trình duyệt chặn chép, bạn thử lại");
-  else shareUnit(u, CONTACT, a, toast);
+  else if(a==="post") toast(await copyText(postText(u, SHARE_CONTACT)) ? "Đã chép bài đăng" : "Trình duyệt chặn chép, bạn thử lại");
+  else shareUnit(u, SHARE_CONTACT, a, toast);
 });
 $("#units").addEventListener("click", e => {
   if (e.target.closest("button,select,details,input,a,label")) return;

@@ -149,7 +149,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <div class="app">
   <header>
     <div class="brand">Văn phòng 3D · Giỏ hàng Grand Park Q9
-      <small>Liên hệ Admin: 0933114527 (gọi hoặc Zalo)</small></div>
+      <small id="hdrContact">Liên hệ Admin: 0933114527 (gọi hoặc Zalo)</small></div>
     <nav class="views" aria-label="Góc nhìn">
       <button class="chip" data-view="lobby" aria-pressed="true">Sảnh đón</button>
       <button class="chip" data-view="model" aria-pressed="false">Logo 3D</button>
@@ -198,12 +198,20 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127d";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127e";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
 const SHOW = u => u.hot && u.status !== "sold";
 const IS_SAMPLE = !!me.demo;
+// Sales/CTV gửi căn: bài đăng ghi SĐT của chính sales đó (không ghi Admin) để giữ khách cho sales.
+// Khách do sales giới thiệu: nút liên hệ trên web cũng là sales đó.
+const digits=v=>String(v||"").replace(/[^0-9]/g,"");
+const IS_SELLER = me.role!=="admin" && ["ctv","nhanvien"].includes(me.kind);
+const SHARE_CONTACT = IS_SELLER ? { phone: digits(me.phone), facebook: CONTACT.facebook, label: "" } : { ...CONTACT, label: "Admin" };
+const VIEW_CONTACT = (me.kind==="khach" && digits(me.sales_phone)) ? { phone: digits(me.sales_phone), facebook: CONTACT.facebook, label: "Sales" + (me.sales_ref ? " " + me.sales_ref : "") } : { ...CONTACT, label: "Admin" };
+{const h=document.querySelector("#hdrContact");if(h)h.textContent=`Liên hệ ${VIEW_CONTACT.label}: ${VIEW_CONTACT.phone} (gọi hoặc Zalo)`;}
+
 if(!me.demo&&(["ctv","nhanvien"].includes(me.kind)||me.role==="admin"))setShareRef(me.id);
 let UNITS = (IS_SAMPLE ? sampleUnits().map((u,i)=>({...u,hot:i%3===0})) : (await loadUnits()) || []).filter(SHOW);
 
@@ -261,7 +269,7 @@ function render(){
   rows.sort((a,b)=>(a[k]-b[k])*d);
   const avail=rows.filter(u=>u.status==="ok").length;
   $("#count").textContent=`${rows.length} căn · ${avail} còn hàng`;
-  if(!UNITS.length){$("#list").innerHTML=`<div class="empty">Hiện chưa có căn giá tốt.<br>Nhắn Zalo <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">${CONTACT.phone}</a> để nhận giỏ hàng đầy đủ.</div>`;return}
+  if(!UNITS.length){$("#list").innerHTML=`<div class="empty">Hiện chưa có căn giá tốt.<br>Nhắn Zalo <a href="https://zalo.me/${VIEW_CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">${VIEW_CONTACT.phone}</a> để nhận giỏ hàng đầy đủ.</div>`;return}
   $("#towerPill").hidden=!state.tower; $("#towerName").textContent=state.tower;
   $("#list").innerHTML=rows.length?rows.map(u=>`
     <article class="unit ${u.status==="sold"?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
@@ -273,9 +281,9 @@ function render(){
         <span class="st ${u.status}">${ST[u.status]}</span></div>
       <div class="u-act">
         ${u.status==="sold"?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
-          <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo Admin ${CONTACT.phone}</a>
-          <a href="${CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}"><i>✉️</i>Nhắn Messenger</a>
-          <a href="tel:${CONTACT.phone}"><i>📞</i>Gọi Admin ${CONTACT.phone}</a>
+          <a href="https://zalo.me/${VIEW_CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo ${VIEW_CONTACT.label} ${VIEW_CONTACT.phone}</a>
+          <a href="${VIEW_CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}"><i>✉️</i>Nhắn Messenger</a>
+          <a href="tel:${VIEW_CONTACT.phone}"><i>📞</i>Gọi ${VIEW_CONTACT.label} ${VIEW_CONTACT.phone}</a>
           <button data-copyonly="${u.code}"><i>📋</i>Chép tin nhắn hỏi căn này</button></div></details>`}
         <details class="dd"><summary class="btn">Chia sẻ</summary><div class="dd-menu">
           <button data-share="zalo" data-code="${u.code}"><i>💬</i>Chia sẻ qua Zalo</button>
@@ -289,7 +297,7 @@ function copy(text){ copyText(text).then(ok=>toast(ok?"Đã chép tin nhắn, d�
 initMenus();
 $("#list").addEventListener("click",e=>{
   const sh=e.target.closest("[data-share]");
-  if(sh){shareUnit(UNITS.find(x=>x.code===sh.dataset.code),CONTACT,sh.dataset.share,toast);return}
+  if(sh){shareUnit(UNITS.find(x=>x.code===sh.dataset.code),SHARE_CONTACT,sh.dataset.share,toast);return}
   if(e.target.closest("summary")||(e.target.closest(".dd-menu")&&!e.target.closest("[data-copy],[data-copyonly]")))return;
   const ph=e.target.closest("[data-photos]");
   if(ph){const u=UNITS.find(x=>x.code===ph.dataset.photos);const imgs=[...ph.querySelectorAll("img")];const k=Math.max(0,imgs.indexOf(e.target));openAlbum(u,k);return}
