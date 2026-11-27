@@ -52,6 +52,8 @@ aside{background:var(--panel);border-left:1px solid var(--line);display:flex;fle
 .cart-head h2 b{font-size:13px;font-weight:500;color:var(--muted);font-family:var(--body)}
 .sample{font-size:12px;color:var(--hold);background:rgba(226,178,74,.1);border:1px solid rgba(226,178,74,.35);border-radius:6px;padding:6px 8px}
 .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.qsearch{display:grid;gap:4px;margin-bottom:8px}
+.qsearch input{width:100%;font-size:15px;padding:10px 12px;border-color:rgba(214,167,92,.55)}
 select{font:inherit;color:var(--text);background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:100%}
 label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .tower-pill{display:flex;align-items:center;gap:8px;font-size:13px}
@@ -179,6 +181,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
       <h2>Căn giá tốt <b id="count"></b></h2>
       <div class="sample" id="roleNote" hidden></div>
       <div class="sample" id="sampleNote">Dữ liệu mẫu để xem giao diện. Giá, mã căn và trạng thái chưa phải hàng thật.</div>
+      <label class="f qsearch">🔎 Tìm hàng<input id="fQ" type="search" autocomplete="off" placeholder="vd: 2pn rainbow dưới 3 tỷ · thuê 1pn+ 8tr · view sông · có pass"></label>
       <div class="filters">
         <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
         <label class="f">Loại căn<select id="fType"><option value="">Tất cả</option></select></label>
@@ -199,7 +202,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone, normCode } from "./data.js?v=20261127q";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone, normCode, makeSearch } from "./data.js?v=20261127r";
 import { sb, requireApproved, loadUnits, signOut, initNotices } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -267,7 +270,8 @@ function closeAlbum(){if(!LB)return;LB.el.remove();LB=null;document.body.style.o
 addEventListener("keydown",e=>{if(!LB)return;if(e.key==="Escape")closeAlbum();if(e.key==="ArrowRight")goAlbum(1);if(e.key==="ArrowLeft")goAlbum(-1)});
 function msgFor(u){return HIDE_CODE?`Chào anh/chị, em có khách quan tâm căn ở Toà ${u.tower} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price,u.deal)}). Link căn: ${unitLink(u)}`:`Chào anh/chị, em quan tâm căn ${u.code} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price,u.deal)}). Anh/chị tư vấn giúp em nhé.`}
 function render(){
-  let rows=UNITS.filter(u=>(!state.zone||u.zone===state.zone)&&(!state.type||u.type===state.type)&&(!state.status||u.status===state.status)&&(!state.tower||u.tower===state.tower)&&(!state.pass||!!u.has_pass===(state.pass==="1")));
+  const qf=makeSearch(state.q||"",shownCode);
+  let rows=UNITS.filter(u=>qf(u)&&(!state.zone||u.zone===state.zone)&&(!state.type||u.type===state.type)&&(!state.status||u.status===state.status)&&(!state.tower||u.tower===state.tower)&&(!state.pass||!!u.has_pass===(state.pass==="1")));
   const k=state.sort.replace("-",""), d=state.sort.startsWith("-")?-1:1;
   rows.sort((a,b)=>(a[k]-b[k])*d);
   const avail=rows.filter(u=>u.status==="ok").length;
@@ -310,6 +314,7 @@ $("#list").addEventListener("click",e=>{
   if(c.dataset.show){showUnit(u);return}
   copy(msgFor(u));
 });
+$("#fQ").addEventListener("input",e=>{state.q=e.target.value;render();highlight()});
 ["zone","type","status","pass","sort"].forEach(k=>$("#f"+k[0].toUpperCase()+k.slice(1)).addEventListener("change",e=>{state[k]=e.target.value;render();highlight()}));
 $("#clearTower").addEventListener("click",()=>{state.tower="";state.active="";render();highlight()});
 render();
@@ -806,7 +811,7 @@ function openFromHash(){
   const m=location.hash.match(/^#(can|u)=(.+)$/); if(!m) return;
   const v=decodeURIComponent(m[2]),u=UNITS.find(x=>m[1]==="u"?String(x.id)===v:(x.code===v||x.code===normCode(v)));
   if(!u){toast("Căn này không còn trong giỏ hàng");return}
-  showTab("cart");state.zone="";state.type="";state.status="";state.pass="";state.tower="";["#fZone","#fType","#fStatus","#fPass"].forEach(s=>$(s).value="");
+  showTab("cart");state.zone="";state.type="";state.status="";state.pass="";state.q="";state.tower="";["#fZone","#fType","#fStatus","#fPass","#fQ"].forEach(s=>$(s).value="");
   state.active=u.code;render();
   document.querySelector(`.unit[data-code="${CSS.escape(u.code)}"]`)?.scrollIntoView({block:"center"});
   showUnit(u);

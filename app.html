@@ -90,6 +90,8 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 .vw-grid div{display:grid;gap:2px}.vw-grid dt{font-size:12px;color:var(--muted)}.vw-grid dd{margin:0;font-weight:500}
 .vw-priv{border:1px dashed rgba(214,167,92,.5);border-radius:10px;padding:10px 12px}
 .vw-priv b{font-size:12.5px;color:var(--brass)}
+.bar label.f.qsearch{flex:1 1 100%;min-width:0}
+.qsearch input{font-size:15px;padding:11px 12px;border-color:rgba(214,167,92,.55)}
 .quick{border:1px dashed rgba(214,167,92,.6);background:rgba(214,167,92,.06);border-radius:10px;padding:10px 12px;margin:6px 0 12px}
 .quick textarea{margin-top:6px;resize:vertical}
 .f.wide{grid-column:span 2}
@@ -114,7 +116,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <main>
   <section id="paneCart">
     <div class="bar">
-      <label class="f">Tìm mã căn<input id="q" placeholder="VD: S9.03"></label>
+      <label class="f qsearch">🔎 Tìm hàng<input id="q" type="search" autocomplete="off" placeholder="Gõ tự nhiên: 2pn rainbow dưới 3 tỷ đông nam có pass · thuê 1pn+ 8tr · S1.02 · view sông"></label>
       <label class="f">Thuê / bán<select id="fDeal"><option value="">Tất cả</option><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
       <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
       <label class="f">Văn phòng 3D<select id="fHot"><option value="">Tất cả căn</option><option value="1">Chỉ căn giá tốt</option><option value="0">Căn chưa đánh dấu</option></select></label>
@@ -236,7 +238,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower, parseCode, parseOne } from "./data.js?v=20261127q";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower, parseCode, parseOne, makeSearch } from "./data.js?v=20261127r";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -333,8 +335,8 @@ const setPriceLbl = () => { const t=$("#u_deal").value==="thue"; $("#priceLbl").
 $("#u_deal").addEventListener("change", setPriceLbl);
 
 function renderUnits(){
-  const q=$("#q").value.trim().toLowerCase(), z=$("#fZone").value, s=$("#fStatus").value, h=$("#fHot").value, dl=$("#fDeal").value, pf=$("#fPass").value;
-  const rows = UNITS.filter(u=>(!q||u.code.toLowerCase().includes(q))&&(!z||u.zone===z)&&(!s||u.status===s)&&(!h||!!u.hot===(h==="1"))&&(!pf||!!u.has_pass===(pf==="1"))&&(!dl||(u.deal||"ban")===dl))
+  const qf=makeSearch($("#q").value, shownCode), z=$("#fZone").value, s=$("#fStatus").value, h=$("#fHot").value, dl=$("#fDeal").value, pf=$("#fPass").value;
+  const rows = UNITS.filter(u=>qf(u)&&(!z||u.zone===z)&&(!s||u.status===s)&&(!h||!!u.hot===(h==="1"))&&(!pf||!!u.has_pass===(pf==="1"))&&(!dl||(u.deal||"ban")===dl))
     .sort((a,b)=>(a.deal||"ban").localeCompare(b.deal||"ban")||a.price-b.price);
   if (!UNITS.length) {
     $("#units").innerHTML = `<tr><td colspan="9" class="empty">Giỏ hàng đang trống.${canEdit?` Bấm "Thêm căn" để nhập căn đầu tiên, hoặc <button class="btn sm" id="seed">nạp 48 căn mẫu</button> để xem thử (nhớ xoá trước khi gửi khách).`:""}</td></tr>`;

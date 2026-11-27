@@ -285,3 +285,51 @@ export function initMenus() {
     if (r.bottom < 0 || r.top > innerHeight) d.open = false; else placeMenu(d);
   }), { passive: true, capture: true });
 }
+
+/* ---------- Ô tìm hàng: gõ tự nhiên, vd "2pn rainbow dưới 3 tỷ đông nam có pass", "thuê 1pn+ 8tr", "s1.02", "full nội thất view sông" ---------- */
+export const deaccent = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/gi,"d").toLowerCase();
+const ZONE_WORDS = [["beverly solari","solari"],["solari","solari"],["bs","solari"],["rainbow","rainbow"],["origami","origami"],["glory heights","glory"],["glory","glory"],["gh","glory"],
+  ["beverly","beverly"],["be","beverly"],["opus one","opus"],["opus","opus"],["os","opus"],["masteri centre point","masteri"],["masteri","masteri"],["mcp","masteri"],["lumiere boulevard","lumiere"],["lumiere","lumiere"],["lbv","lumiere"]];
+const DIR_SEARCH = [["dong nam","Đông Nam"],["dong bac","Đông Bắc"],["tay nam","Tây Nam"],["tay bac","Tây Bắc"],["dn","Đông Nam"],["db","Đông Bắc"],["tn","Tây Nam"],["tb","Tây Bắc"],["dong","Đông"],["tay","Tây"],["nam","Nam"],["bac","Bắc"]];
+const VIEW_SEARCH = [["cong vien","Công viên 36ha"],["36ha","Công viên 36ha"],["ho boi","Hồ bơi"],["noi khu","Nội khu"],["ngoai khu","Ngoại khu"],["thanh pho","Thành phố"],["song","Sông"]];
+export function makeSearch(q, codeOf = u => u.code){
+  let s = " " + deaccent(q).replace(/[,;]+/g, " ").replace(/\s+/g, " ").trim() + " ";
+  if (!s.trim()) return () => true;
+  const f = {}, num = x => parseFloat(String(x).replace(",", ".")), cut = m => { s = s.replace(m, " "); };
+  const unitOf = u => /^(tr|trieu)/.test(u||"") ? "tr" : u ? "ty" : null;
+  let m;
+  if ((m = s.match(/(\d+(?:[.,]\d+)?)\s*(?:-|den|toi)\s*(\d+(?:[.,]\d+)?)\s*(ty|tr|trieu)?\b/))) { f.pmin = num(m[1]); f.pmax = num(m[2]); f.unit = unitOf(m[3]); cut(m[0]); }
+  if ((m = s.match(/(?:duoi|<|toi da|max)\s*(\d+(?:[.,]\d+)?)\s*(ty|tr|trieu)?\b/))) { f.pmax = num(m[1]); f.unit = unitOf(m[2]) || f.unit; cut(m[0]); }
+  if ((m = s.match(/(?:tren|>|tu|min)\s*(\d+(?:[.,]\d+)?)\s*(ty|tr|trieu)?\b/))) { f.pmin = num(m[1]); f.unit = unitOf(m[2]) || f.unit; cut(m[0]); }
+  if ((m = s.match(/(\d+(?:[.,]\d+)?)\s*(ty|tr|trieu)\b/))) { const v = num(m[1]); f.pmin = v * .9; f.pmax = v * 1.1; f.unit = unitOf(m[2]); cut(m[0]); }
+  if ((m = s.match(/(\d{2,3}(?:[.,]\d+)?)\s*(?:m2|m²|met)\b/))) { const v = num(m[1]); f.amin = v - 5; f.amax = v + 5; cut(m[0]); }
+  if ((m = s.match(/\bstudio\b/))) { f.type = "Studio"; cut(m[0]); }
+  else if ((m = s.match(/\b([123])\s*(?:pn|phong ngu)\s*(\+|plus)?/))) { f.type = `${m[1]}PN${m[2] ? "+" : ""}`; f.typeLoose = !m[2]; cut(m[0]); }
+  if ((m = s.match(/\b(?:cho thue|thue)\b/))) { f.deal = "thue"; cut(m[0]); } else if ((m = s.match(/ ban (?!cong)/))) { f.deal = "ban"; cut(m[0]); }
+  if ((m = s.match(/\b(?:co pass|pass)\b/))) { f.pass = true; cut(m[0]); }
+  if ((m = s.match(/\bcon hang\b|\bcon\b/))) { f.status = "ok"; cut(m[0]); }
+  if ((m = s.match(/\b(?:gia tot|hot)\b/))) { f.hot = true; cut(m[0]); }
+  for (const [w, v] of VIEW_SEARCH) if ((m = s.match(new RegExp("(?:view )?\\b" + w + "\\b")))) { f.view = v; cut(m[0]); break; }
+  for (const [w, v] of DIR_SEARCH) if ((m = s.match(new RegExp("(?:huong |bc |ban cong )?\\b" + w + "\\b")))) { f.dir = v; cut(m[0]); break; }
+  for (const [w, v] of ZONE_WORDS) if ((m = s.match(new RegExp("\\b" + w + "\\b(?![.\\d])")))) { f.zone = v; cut(m[0]); break; }
+  if (f.unit === "tr" && !f.deal) f.deal = "thue";
+  if (f.unit === "ty" && !f.deal) f.deal = "ban";
+  const words = s.replace(/\b(can|toa|tang|view|huong|gia|co|noi that|nt|khu|phan)\b/g, " ").split(" ").filter(Boolean);
+  return u => {
+    const deal = u.deal || "ban";
+    if (f.deal && deal !== f.deal) return false;
+    if (f.zone && u.zone !== f.zone) return false;
+    if (f.type && !(u.type === f.type || (f.typeLoose && u.type === f.type + "+"))) return false;
+    if (f.dir && u.dir !== f.dir) return false;
+    if (f.view && u.view !== f.view) return false;
+    if (f.pass && !u.has_pass) return false;
+    if (f.hot && !u.hot) return false;
+    if (f.status && u.status !== f.status) return false;
+    if (f.pmin != null && !(u.price >= f.pmin)) return false;
+    if (f.pmax != null && !(u.price <= f.pmax)) return false;
+    if (f.amin != null && !(u.area >= f.amin && u.area <= f.amax)) return false;
+    if (!words.length) return true;
+    const hay = deaccent([codeOf(u), zoneOf(u.zone).name, u.tower, u.type, u.dir, u.view, u.furnish, u.note, u.floor ? "t" + u.floor : ""].join(" "));
+    return words.every(w => hay.includes(w));
+  };
+}
