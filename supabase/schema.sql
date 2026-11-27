@@ -461,3 +461,69 @@ alter table public.units add column if not exists created_at timestamptz;
 update public.units set created_at = least(posted_at, updated_at) where created_at is null;
 alter table public.units alter column created_at set default now();
 alter table public.units alter column created_at set not null;
+
+-- 20. (2026-11-27) Trùng mã căn: chỉ nhận giá TỐT HƠN (thấp hơn). Áp dụng cho MỌI tài khoản, kể cả Admin và lịch Zalo 7h.
+--     Giá bằng thì vẫn cập nhật các thông tin khác. Giá cao hơn thì từ chối: "Căn này đã có người cập nhật giá tốt hơn".
+--     Ngoại lệ duy nhất: Admin bấm Sửa đúng căn đó trong trang Quản lý (save_unit với p_force = true) để sửa giá khi chủ nhà tăng giá.
+create or replace function public.units_price_guard() returns trigger
+language plpgsql as $$
+begin
+  if new.price > old.price and coalesce(current_setting('q9.force_price', true), '') <> '1' then
+    raise exception 'GIA_KHONG_TOT_HON' using hint = 'Căn này đã có người cập nhật giá tốt hơn';
+  end if;
+  return new;
+end $$;
+drop trigger if exists units_price_guard on public.units;
+create trigger units_price_guard before update on public.units
+  for each row execute function public.units_price_guard();
+
+create or replace function public.save_unit(p_id uuid, p jsonb, p_force boolean default false) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  rid uuid := p_id;
+  cols text;
+  q jsonb := p - 'id' - 'updated_by' - 'updated_at' - 'created_at';
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  if p_force and p_id is not null and public.is_admin() then perform set_config('q9.force_price', '1', true); end if;
+  if rid is null and q ? 'code' then
+    select id into rid from units where code = q->>'code' and deal = coalesce(q->>'deal', 'ban');
+  end if;
+  -- Sales/Admin sửa đúng căn (có p_id) thì được đổi mã; CTV/khách không bao giờ được đổi mã (họ chỉ thấy mã che)
+  if rid is not null and (p_id is null or public.is_ctv()) then q := q - 'code' - 'deal'; end if;
+  select string_agg(quote_ident(k), ',') into cols from jsonb_object_keys(q) k
+    where k in (select column_name from information_schema.columns where table_schema = 'public' and table_name = 'units');
+  if rid is null then
+    if cols is null then raise exception 'Thiếu thông tin căn'; end if;
+    execute format('insert into units (%s) select %s from jsonb_populate_record(null::units, $1) returning id', cols, cols) using q into rid;
+  elsif cols is not null then
+    execute format('update units set (%s) = (select %s from jsonb_populate_record(null::units, $1)) where id = $2', cols, cols) using q, rid;
+  end if;
+  perform set_config('q9.force_price', '', true);
+  return rid;
+end $$;
+grant execute on function public.save_unit(uuid, jsonb, boolean) to authenticated;
+
+create or replace function public.ctv_save_unit(p_id uuid, p jsonb) returns uuid
+language sql security definer set search_path = public as $$ select public.save_unit(p_id, p, false) $$;
+
+-- Nhập nhiều căn (dán Excel, dán tin Zalo, lịch Zalo 7h): từng căn một, căn giá không tốt hơn thì bỏ qua và báo lại.
+create or replace function public.import_units(p_rows jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  r jsonb; rid uuid; ids jsonb := '[]'; rejected jsonb := '[]'; hide boolean := public.is_ctv();
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  for r in select * from jsonb_array_elements(p_rows) loop
+    begin
+      rid := public.save_unit(null, r, false);
+      ids := ids || jsonb_build_object('code', r->>'code', 'id', rid);
+    exception when others then
+      if sqlerrm = 'GIA_KHONG_TOT_HON' then
+        rejected := rejected || jsonb_build_object('code', case when hide then null else r->>'code' end, 'tower', r->>'tower', 'price', r->'price');
+      else raise; end if;
+    end;
+  end loop;
+  return jsonb_build_object('saved', jsonb_array_length(ids), 'ids', ids, 'rejected', rejected);
+end $$;
+grant execute on function public.import_units(jsonb) to authenticated;

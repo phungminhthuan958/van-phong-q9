@@ -249,12 +249,15 @@ const VIEW_CONTACT = (me.kind==="khach" && digits(me.sales_phone)) ? { phone: di
 const canEdit = isAdmin || ["nhanvien","sales","ctv"].includes(me.kind);   // Sales, CTV, nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn
 // CTV không được biết mã căn: đọc giỏ hàng qua hàm units_for_ctv (mã ẩn), ghi qua ctv_save_unit
 const HIDE = me.kind==="ctv" && !isAdmin && !me.demo; setHideCode(HIDE);
-async function ctvSave(id,p){ const { data, error } = await sb.rpc("ctv_save_unit",{ p_id:id, p }); return { data, error }; }
+async function ctvSave(id,p){ const { data, error } = await sb.rpc("save_unit",{ p_id:id, p, p_force:false }); return { data, error }; }
 async function unitPatch(id,patch){ if(HIDE) return ctvSave(id,patch); return sb.from("units").update(patch).eq("id",id); }
-async function unitSave(id,row){ if(HIDE){ const r=await ctvSave(id,row); return { data:r.data?{id:r.data}:null, error:r.error }; }
-  return id ? sb.from("units").update(row).eq("id",id).select("id").single() : sb.from("units").insert(row).select("id").single(); }
-async function unitsUpsert(rows){ if(HIDE){ const out=[]; for(const r of rows){ const x=await ctvSave(null,r); if(x.error) return { error:x.error }; out.push({ id:x.data, code:r.code }); } return { data:out }; }
-  return sb.from("units").upsert(rows,{ onConflict:"code,deal" }).select("id,code"); }
+// Luật trùng mã căn (mọi tài khoản): chỉ nhận giá tốt hơn (thấp hơn). Kiểm tra ở máy chủ (trigger units_price_guard).
+// Ngoại lệ: Admin bấm Sửa đúng căn đó thì được sửa giá (p_force).
+const PRICE_MSG = "Căn này đã có người cập nhật giá tốt hơn rồi. Chỉ nhận giá thấp hơn giá hiện tại.";
+const errText = e => /GIA_KHONG_TOT_HON/.test(e?.message||"") ? PRICE_MSG : (e?.message || "Có lỗi");
+async function unitSave(id,row){ const { data, error } = await sb.rpc("save_unit",{ p_id:id, p:row, p_force: !!(id && isAdmin) }); return { data: data?{id:data}:null, error }; }
+async function unitsUpsert(rows){ const { data, error } = await sb.rpc("import_units",{ p_rows: rows }); if (error) return { error };
+  return { data: data.ids, rejected: data.rejected || [] }; }
 $("#demoNote").hidden = !me.demo;
 $("#who").innerHTML = `<b>${esc(me.full_name || me.email)}</b> · ${isAdmin ? "Quản trị" : esc(deptOf(me.dept)?.name || "Nhân viên")}`;
 $("#logout").addEventListener("click", signOut);
@@ -414,7 +417,7 @@ $("#unitForm").addEventListener("submit", async e => {
     if (HIDE && editing) delete row.code;
     const q = unitSave(editing?.id || null, row);
     const { data, error } = await q;
-    if (error) return toast(error.code==="23505" ? "Mã căn này đã có trong giỏ hàng (cùng loại thuê/bán)" : "Không lưu được: "+error.message);
+    if (error) return toast(/GIA_KHONG_TOT_HON/.test(error.message||"") ? PRICE_MSG : "Không lưu được: "+errText(error));
     const hasPriv = Object.values(priv).some(Boolean);
     if (isAdmin || (!editing && hasPriv)) {
       const { error: e2 } = await sb.from("unit_private").upsert({ unit_id: data.id, ...priv, updated_at: new Date().toISOString() }, isAdmin ? {} : { ignoreDuplicates:true });
@@ -531,8 +534,9 @@ $("#bulkSave").addEventListener("click", async ()=>{
   $("#bulkSave").disabled = true;
   if (me.demo) { bulkRows.forEach(({row,priv}) => { const old = UNITS.find(u=>u.code===row.code); const id = old?.id || "demo"+Math.random(); old ? Object.assign(old,row) : UNITS.push({...row,id}); PRIV[id]=priv; }); }
   else {
-    const { data, error } = await unitsUpsert(bulkRows.map(b=>b.row));
-    if (error) { $("#bulkSave").disabled=false; return toast("Không nhập được: "+error.message); }
+    const { data, error, rejected } = await unitsUpsert(bulkRows.map(b=>b.row));
+    if (error) { $("#bulkSave").disabled=false; return toast("Không nhập được: "+errText(error)); }
+    if (rejected?.length) setTimeout(()=>toast(`${rejected.length} căn không cập nhật vì đã có người nhập giá tốt hơn: ${rejected.map(r=>r.code||("Toà "+r.tower)).slice(0,6).join(", ")}${rejected.length>6?"…":""}`),2600);
     const idOf = Object.fromEntries(data.map(r=>[r.code,r.id]));
     const privRows = bulkRows.filter(b=>b.priv.holder||b.priv.owner_name||b.priv.owner_phone).map(b=>({ unit_id:idOf[b.row.code], ...b.priv, updated_at:new Date().toISOString() }));
     if (privRows.length) { const { error:e2 } = await sb.from("unit_private").upsert(privRows, isAdmin ? {} : { ignoreDuplicates:true }); if (e2) toast("Đã nhập căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message); }
