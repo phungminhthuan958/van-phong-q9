@@ -436,6 +436,29 @@ $("#bulkSave").addEventListener("click", async ()=>{
   toast(`Đã nhập ${bulkRows.length} căn`); $("#bulk").hidden=true; $("#bulkText").value=""; $("#bulkResult").innerHTML=""; renderUnits();
 });
 
+/* ---------- Nhận ảnh căn từ Zalo Web ----------
+   Claude mở trang này từ tab chat.zalo.me (window.open), rồi gửi ảnh của tin đăng sang bằng postMessage.
+   Chỉ nhận từ đúng chat.zalo.me và chỉ khi người đang đăng nhập được sửa giỏ hàng. */
+window.addEventListener("message", async ev => {
+  if (ev.origin !== "https://chat.zalo.me" || !canEdit || me.demo) return;
+  const m = ev.data; if (!m || m.type !== "q9-photos" || !Array.isArray(m.files)) return;
+  const reply = r => ev.source?.postMessage({ type:"q9-photos-done", id:m.id, code:m.code, ...r }, ev.origin);
+  const u = UNITS.find(x => x.code === m.code && (x.deal || "ban") === (m.deal || "ban"));
+  if (!u) return reply({ ok:false, error:"Không tìm thấy căn " + m.code });
+  if (u.photos?.length && !m.replace) return reply({ ok:true, skipped:true, count:u.photos.length });
+  const urls = m.replace ? [] : [...(u.photos || [])];
+  for (const f of m.files.slice(0, 10)) {
+    if (!(f instanceof Blob) || !/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 5242880) continue;
+    const path = `${u.code}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type, cacheControl: "31536000" });
+    if (!error) urls.push(sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
+  }
+  const { error } = await sb.from("units").update({ photos: urls }).eq("id", u.id);
+  if (!error) { u.photos = urls; renderUnits(); }
+  reply({ ok: !error, count: urls.length, error: error?.message });
+});
+window.opener?.postMessage({ type:"q9-ready", canEdit }, "https://chat.zalo.me");
+
 /* ---------- Tài khoản (quản trị) ---------- */
 let PEOPLE = [];
 async function loadPeople(){
