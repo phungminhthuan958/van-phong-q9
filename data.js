@@ -19,9 +19,10 @@ export const ZONES = [
   { id:"opus",    name:"The Opus One", color:0xe07a6a, ppm:[70,82], c:[.72,-.95], ang:0, cols:2, sp:[.34,.32],
     tf:{"OS1":[34,"T"],"OS2":[32,"T"],"OS3":[32,"T"],"OS5":[34,"T"]} },
   // Thêm 27/11 theo yêu cầu anh Thuận. Masteri Centre Point: 10 toà 22–39 tầng; LUMIÈRE Boulevard: 5 toà 22–30 tầng (Angelica, Banyan, Camellia, Daisy, Erica).
-  // Mã toà M1–M10, L1–L5 là mã tạm, số tầng từng toà chưa có nguồn chính xác.
+  // Masteri Centre Point theo mặt bằng tổng thể anh gửi 27/11: 6 block A, B, C, D, E1, E2; vị trí căn trên tầng A.01–A.13, B.01–B.13, C.01–C.17, D.01–D.17, E1.01–E1.11, E2.01–E2.11.
+  // LUMIÈRE: mã L1–L5 là mã tạm. Số tầng từng toà chưa có nguồn chính xác.
   { id:"masteri", name:"Masteri Centre Point", color:0x8fa7c9, ppm:[60,75], c:[.25,-.45], ang:0, cols:5, sp:[.3,.3],
-    tf:{"M1":[30,"T"],"M2":[30,"T"],"M3":[30,"T"],"M4":[30,"T"],"M5":[30,"T"],"M6":[30,"T"],"M7":[30,"T"],"M8":[30,"T"],"M9":[30,"T"],"M10":[30,"T"]} },
+    tf:{"A":[30,"T"],"B":[30,"T"],"C":[30,"T"],"D":[30,"T"],"E1":[30,"T"],"E2":[30,"T"]} },
   { id:"lumiere", name:"LUMIÈRE Boulevard", color:0x9fd36b, ppm:[62,78], c:[-.7,.75], ang:0, cols:5, sp:[.3,.3],
     tf:{"L1":[28,"T"],"L2":[28,"T"],"L3":[28,"T"],"L4":[30,"T"],"L5":[30,"T"]} },
 ];
@@ -122,7 +123,7 @@ function zoneOfTower(t){
   const u=t.toUpperCase(), n=parseInt(u.replace(/^S/,""));
   if (/^S\d/.test(u)) return n<=5 ? "rainbow" : "origami";
   if (/^GH/.test(u)) return "glory"; if (/^O[PS]/.test(u)) return "opus"; if (/^BS/.test(u)) return "solari"; if (/^B/.test(u)) return "beverly";
-  if (/^M\d/.test(u)) return "masteri"; if (/^L\d/.test(u)) return "lumiere";
+  if (/^(A|B|C|D|E[12])$/.test(u)) return "masteri"; if (/^L\d/.test(u)) return "lumiere";
   return null;
 }
 export function parseZalo(text){
@@ -133,13 +134,14 @@ export function parseZalo(text){
     const b = raw.toLowerCase();
     if (/cho thuê|thuê\b/.test(b) && !/bán/.test(b)) continue;                 // tạm bỏ tin cho thuê
     const tm = raw.match(/\b(S\s?\d{1,2}\.\d{2}|GH\s?\d{1,2}|O[PS]\s?\d|BS\s?\d{1,2}|BE\s?\d{1,2}|B\s?\d{1,2})\b/i)
-      || (/masteri|mcp|centre point/.test(b) && raw.match(/\b(M\s?\d{1,2})\b(?!\s*²)/i))      // "M2" chỉ là toà khi tin có nhắc Masteri (tránh nhầm m2 diện tích)
+      || (/masteri|mcp|centre point/.test(b) && raw.match(/\b(E\s?[12]|[A-D])(?=\s?[.\-]\s?\d|\s+\d)/i))      // Masteri: block A–D, E1, E2 (vd "A.12.07", "E1-1508"), chỉ khi tin có nhắc Masteri
       || (/lumi[eè]re|lumière/.test(b) && raw.match(/\b(L\s?[1-5])\b/i));
     if (!tm) continue;
     let tower = tm[1].replace(/\s/g,"").toUpperCase().replace(/^OP/,"OS").replace(/^B(\d)/,"BE$1");
     const zone = zoneOfTower(tower) || zoneOfTower(tower);
     const after = raw.slice(tm.index + tm[0].length);
-    const num = (after.match(/^\s*[-.\s]\s*(\d{3,4})\b/) || raw.match(/căn\s*(?:số\s*)?(\d{3,4})\b/i) || [])[1];
+    const dot = after.match(/^\s?[.\-]\s?(\d{1,2})[.\-](\d{2})\b/);           // kiểu Masteri "A.12.07" = block A, tầng 12, căn 07
+    const num = dot ? dot[1].padStart(2,"0")+dot[2] : (after.match(/^\s*[-.\s]\s*(\d{3,4})\b/) || raw.match(/căn\s*(?:số\s*)?(\d{3,4})\b/i) || [])[1];
     let floor = (b.match(/tầng\s*(\d{1,2})\b/) || [])[1]; floor = floor ? +floor : (num ? Math.floor(+num/100) : null);
     const ty = (b.match(/studio|[123]\s?pn\s?\+?\s?1?|[123]\s?(?:phòng ngủ|pn)/) || [""])[0];
     const type = /studio/.test(ty) ? "Studio" : ty ? `${ty.match(/\d/)[0]}PN${/\+|\d\s?pn\s?1/.test(ty.replace(/^\d/,""))?"+":""}` : "";
