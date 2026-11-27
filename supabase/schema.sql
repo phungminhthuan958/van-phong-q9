@@ -112,3 +112,8 @@ alter table public.unit_private enable row level security;
 drop policy if exists "unit_private_all" on public.unit_private;
 create policy "unit_private_all" on public.unit_private for all
   using (public.can_edit_units()) with check (public.can_edit_units());
+
+-- Cấp quyền API cho người dùng đã đăng nhập (RLS ở trên vẫn quyết định ai thấy gì)
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.profiles, public.units, public.unit_private to authenticated;
+grant execute on function public.is_approved(), public.is_admin(), public.can_edit_units() to authenticated;
