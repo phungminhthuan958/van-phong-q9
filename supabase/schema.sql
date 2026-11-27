@@ -433,3 +433,31 @@ create or replace function public.is_ctv() returns boolean   -- tên cũ, nghĩa
 language sql stable security definer set search_path = public as $$
   select exists(select 1 from profiles where id = auth.uid() and kind in ('ctv','khach','chunha') and role <> 'admin')
 $$;
+
+-- 19. (2026-11-27) Thông báo "đã có nguồn hàng mới" cho mọi tài khoản.
+create table if not exists public.notices (
+  id bigserial primary key,
+  body text not null,
+  new_count int,
+  created_at timestamptz not null default now(),
+  created_by uuid default auth.uid()
+);
+alter table public.notices enable row level security;
+drop policy if exists "notices_select" on public.notices;
+drop policy if exists "notices_insert" on public.notices;
+drop policy if exists "notices_delete" on public.notices;
+create policy "notices_select" on public.notices for select using (public.is_approved());
+create policy "notices_insert" on public.notices for insert with check (public.is_admin());
+create policy "notices_delete" on public.notices for delete using (public.is_admin());
+grant select, insert, delete on public.notices to authenticated;
+grant usage on sequence public.notices_id_seq to authenticated;
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notices') then
+    alter publication supabase_realtime add table public.notices;
+  end if;
+end $$;
+-- ngày căn được đưa vào giỏ hàng (để đếm "căn mới hôm nay")
+alter table public.units add column if not exists created_at timestamptz;
+update public.units set created_at = least(posted_at, updated_at) where created_at is null;
+alter table public.units alter column created_at set default now();
+alter table public.units alter column created_at set not null;

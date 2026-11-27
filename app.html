@@ -113,6 +113,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
       <button class="btn primary" id="addBtn" hidden>+ Nhập 1 căn</button>
       <button class="btn" id="bulkBtn" hidden>Nhập nhiều căn từ Excel</button>
       <button class="btn" id="zaloBtn" hidden>Đọc tin nhóm Zalo</button>
+      <button class="btn" id="noticeBtn" hidden>🔔 Báo hàng mới</button>
     </div>
     <div class="panel" id="zalo" hidden>
       <h3>Đọc tin từ nhóm Zalo nguồn hàng</h3>
@@ -130,6 +131,12 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
       <textarea id="bulkText" rows="7" placeholder="S9.03-1205	Origami	S9.03	2PN	65,5	12	Đông Nam	Nội khu	3,45	Còn	Full nội thất	Anh Tú	Chị Lan	0909..."></textarea>
       <div class="acts"><button class="btn" id="bulkPreview">Xem trước</button><button class="btn primary" id="bulkSave" disabled>Nhập</button><button class="btn" id="bulkClose">Đóng</button></div>
       <div id="bulkResult"></div>
+    </div>
+    <div class="panel" id="noticeBox" hidden>
+      <b>Thông báo cho mọi tài khoản con</b>
+      <textarea id="noticeText" rows="3" style="width:100%;box-sizing:border-box;margin-top:8px"></textarea>
+      <div class="muted" style="font-size:12.5px;margin:6px 0 10px">Ai đang mở web thấy ngay, ai vào sau thì thấy khi đăng nhập trong hôm nay.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="noticeSend" type="button">Gửi thông báo</button><button class="btn" id="noticeClose" type="button">Đóng</button></div>
     </div>
     <form class="panel" id="unitForm" hidden>
       <h3 id="formTitle">Thêm căn</h3>
@@ -217,7 +224,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script type="module">
 import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode } from "./data.js?v=20261127g";
 import { CONTACT } from "./config.js";
-import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
+import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
 let toastT; const toast = t => { const e=$("#toast"); e.textContent=t; e.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>e.hidden=true,2400); };
 const opt = (v,l,sel) => `<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;
@@ -419,6 +426,23 @@ $("#unitForm").addEventListener("submit", async e => {
 });
 renderUnits();
 initMenus();
+/* ====== Báo "đã có nguồn hàng mới" cho mọi tài khoản con (chỉ Admin) ====== */
+$("#noticeBtn").hidden = !isAdmin || !!me.demo;
+const vnDayA = d => new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+const newTodayA = () => { const today = vnDayA(Date.now()); return UNITS.filter(u => u.created_at && vnDayA(u.created_at) === today).length; };
+$("#noticeBtn").addEventListener("click", () => {
+  const n = newTodayA(), d = new Date().toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit" });
+  $("#noticeText").value = `🔔 Đã có nguồn hàng mới hôm nay (${d})${n ? `: ${n} căn mới` : ""}. Mọi người vào giỏ hàng xem và gửi khách nhé!`;
+  $("#noticeBox").hidden = false; $("#noticeText").focus();
+});
+$("#noticeClose").addEventListener("click", () => { $("#noticeBox").hidden = true; });
+$("#noticeSend").addEventListener("click", async () => {
+  const body = $("#noticeText").value.trim(); if (!body) return;
+  const { error } = await sendNotice(body, newTodayA());
+  if (error) return toast("Chưa gửi được: " + error.message);
+  $("#noticeBox").hidden = true; toast("Đã gửi thông báo cho mọi tài khoản");
+});
+if (sb && !me.demo) initNotices(UNITS, () => showTab("cart"));
 /* ====== Bấm vào một dòng để xem đầy đủ thông tin căn ====== */
 let VIEWING=null;
 function openView(u){
