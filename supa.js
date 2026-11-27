@@ -10,6 +10,10 @@ const vnToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/H
 export function markLoginToday() { try { localStorage.setItem(LOGIN_DAY_KEY, vnToday()); } catch {} }
 function loggedInToday() { try { return localStorage.getItem(LOGIN_DAY_KEY) === vnToday(); } catch { return true; } }
 
+// Ghi nhớ sales đã gửi link (?s=...) để khi khách đăng ký thì gắn với sales đó
+try { const s = new URLSearchParams(location.search).get("s"); if (s && /^[0-9a-f-]{36}$/i.test(s)) localStorage.setItem("q9SalesRef", s); } catch {}
+export function salesRefFromLink() { try { return localStorage.getItem("q9SalesRef") || ""; } catch { return ""; } }
+
 export async function currentProfile() {
   if (!sb) return null;
   // Link trong email (xác nhận / đặt lại mật khẩu) cũng tính là một lần đăng nhập

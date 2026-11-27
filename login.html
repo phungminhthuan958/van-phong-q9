@@ -85,7 +85,7 @@ form{display:grid;gap:12px}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
-import { sb, configured, currentProfile, markLoginToday } from "./supa.js";
+import { sb, configured, currentProfile, markLoginToday, salesRefFromLink } from "./supa.js";
 import { CONTACT } from "./config.js";
 const $ = s => document.querySelector(s);
 const appUrl = new URL("app.html", location.href).href;
@@ -94,6 +94,8 @@ function tab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("ar
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
 
 $("#ownPhone").textContent=CONTACT.phone; $("#ownZalo").href="https://zalo.me/"+CONTACT.phone; $("#ownTel").href="tel:"+CONTACT.phone;
+const SALES_ID=salesRefFromLink();
+if(SALES_ID){ $("#salesWrap").firstChild.textContent="Sales đang làm việc với bạn: đã ghi nhận theo link sales gửi (có thể ghi thêm nếu cần)"; }
 const kindNow=()=>document.querySelector("[name=kind]:checked").value;
 document.querySelectorAll("[name=kind]").forEach(r=>r.addEventListener("change",()=>{ $("#salesWrap").hidden=kindNow()!=="khach"; $("#ownerBox").hidden=kindNow()!=="chunha"; }));
 if(!configured) say("Web chưa nối máy chủ đăng nhập. Đang ở chế độ xem thử, bấm Đăng nhập để vào xem.","warn");
@@ -140,7 +142,7 @@ $("#fUp").addEventListener("submit", async e=>{
   const kind=kindNow();
   const { data, error } = await sb.auth.signUp({
     email:$("#upEmail").value.trim(), password:$("#upPass").value,
-    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim(), kind, sales_ref: kind==="khach"?$("#upSales").value.trim():null } }
+    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim(), kind, sales_ref: kind==="khach"?$("#upSales").value.trim():null, sales_id: kind==="khach"&&SALES_ID?SALES_ID:null } }
   });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));

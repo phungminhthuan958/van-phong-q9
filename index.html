@@ -198,12 +198,13 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus } from "./data.js?v=20261127c";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127d";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
 const SHOW = u => u.hot && u.status !== "sold";
 const IS_SAMPLE = !!me.demo;
+if(!me.demo&&(["ctv","nhanvien"].includes(me.kind)||me.role==="admin"))setShareRef(me.id);
 let UNITS = (IS_SAMPLE ? sampleUnits().map((u,i)=>({...u,hot:i%3===0})) : (await loadUnits()) || []).filter(SHOW);
 
 /* ====== Giỏ hàng UI ====== */

@@ -215,7 +215,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus } from "./data.js?v=20261127c";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127d";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -232,6 +232,7 @@ sb?.auth.onAuthStateChange(async ev => {
 const me = await requireApproved();
 if (!["nhanvien","ctv"].includes(me.kind) && me.role !== "admin") location.replace("index.html");
 const isAdmin = me.role === "admin";
+if (!me.demo) setShareRef(me.id);
 const canEdit = isAdmin || ["nhanvien","ctv"].includes(me.kind);   // Sales/CTV và nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn
 $("#demoNote").hidden = !me.demo;
 $("#who").innerHTML = `<b>${esc(me.full_name || me.email)}</b> · ${isAdmin ? "Quản trị" : esc(deptOf(me.dept)?.name || "Nhân viên")}`;

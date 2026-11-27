@@ -150,9 +150,12 @@ export function parseZalo(text){
 
 /* ---------- Chia sẻ căn qua Zalo / Messenger ---------- */
 // Link mở thẳng căn đó trên web (người nhận phải đăng ký tài khoản mới xem được)
+// Link do sales gửi có mã của sales (?s=...), khách đăng ký qua link sẽ tự ghi sales đó
+let SHARE_REF = "";
+export function setShareRef(id) { SHARE_REF = id || ""; }
 export function unitLink(code) {
   const base = location.href.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
-  return base + "index.html#can=" + encodeURIComponent(code);
+  return base + "index.html" + (SHARE_REF ? "?s=" + encodeURIComponent(SHARE_REF) : "") + "#can=" + encodeURIComponent(code);
 }
 export function shareText(u, contact) {
   return postText(u, contact) + "\n👉 Xem ảnh và thông tin căn: " + unitLink(u.code);

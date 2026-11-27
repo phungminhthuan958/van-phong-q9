@@ -260,3 +260,28 @@ language sql stable security definer set search_path = public as $$
 $$;
 drop policy if exists "units_delete" on public.units;
 create policy "units_delete" on public.units for delete using (public.is_admin());
+
+-- 13. (2026-11-27) Link căn do sales gửi có mã sales (?s=<id>). Khách đăng ký qua link đó tự ghi sales_ref = tên sales (không ghi SĐT).
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  first_user boolean;
+  k text := coalesce(new.raw_user_meta_data->>'kind', 'khach');
+  sref text := nullif(left(trim(coalesce(new.raw_user_meta_data->>'sales_ref','')),120),'');
+  sid text := new.raw_user_meta_data->>'sales_id';
+  sp profiles%rowtype;
+begin
+  select not exists(select 1 from profiles) into first_user;
+  if k = 'nhanvien' then k := 'ctv'; end if;
+  if k not in ('khach','chunha','ctv') then k := 'khach'; end if;
+  if sid ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select * into sp from profiles where id = sid::uuid and (kind in ('ctv','nhanvien') or role = 'admin');
+    if found then sref := left(coalesce(nullif(sp.full_name,''), 'Sales'), 120); end if;
+  end if;
+  insert into profiles(id, email, full_name, phone, kind, dept, role, status, sales_ref)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone',
+          case when first_user then 'nhanvien' else k end, null,
+          case when first_user then 'admin' else 'member' end,
+          'approved', sref);
+  return new;
+end $$;
