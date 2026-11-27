@@ -101,6 +101,7 @@ label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spac
 .roles{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .roles li{font-size:12.5px;display:grid;gap:1px;padding-left:10px;border-left:2px solid var(--line)}
 .roles b{font-weight:600}
+.roles li.rg{border:0;padding:4px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--brass,#d6a75c)}
 .roles span{color:var(--muted)}
 .u-photos{position:relative;display:grid;grid-template-columns:2fr 1fr;gap:4px;height:150px;border-radius:8px;overflow:hidden;cursor:zoom-in}
 .u-photos.one{grid-template-columns:1fr}
@@ -207,7 +208,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone, normCode, makeSearch } from "./data.js?v=20261127r";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone, normCode, makeSearch } from "./data.js?v=20261127s";
 import { sb, requireApproved, loadUnits, signOut, initNotices } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -332,7 +333,7 @@ document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>show
 function renderDepts(){$("#deptList").innerHTML=DEPTS.map(d=>`<article class="dept ${state.dept===d.id?"active":""}" id="d-${d.id}">
   <div class="d-top"><i style="background:${hex(d.color)}"></i><span class="d-name">${d.name}</span><span class="u-zone">${d.roles.length} vị trí</span></div>
   <p class="d-desc">${d.desc}</p>
-  <ul class="roles">${d.roles.map(r=>`<li><b>${r.t}</b><span>${r.d}</span></li>`).join("")}</ul>
+  <ul class="roles">${d.roles.map((r,k)=>`${r.g&&r.g!==d.roles[k-1]?.g?`<li class="rg">${r.g}</li>`:""}<li><b>${k+1}. ${r.t}</b><span>${r.d}</span></li>`).join("")}</ul>
   <div class="u-act"><button class="btn" data-go="${d.id}">Đi tới phòng</button></div></article>`).join("")}
 $("#deptList").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)focusDept(b.dataset.go)});
 renderDepts();
@@ -779,9 +780,10 @@ DEPTS.forEach(d=>{
   const tex=textTex([{t:d.sign,s:84,x:512,y:120,a:"center",c:hex(d.color),w:700},{t:d.tag,s:40,x:512,y:195,a:"center",w:400}],{w:1024,h:240});
   const sg=new THREE.Mesh(new THREE.PlaneGeometry(3,.7),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
   sg.position.set(x+face*w/2,1.75,z);sg.rotation.y=face*Math.PI/2;scene.add(sg);
-  const n=d.roles.length,gap=(dz-1)/n;
-  d.roles.forEach((r,i)=>{
-    const zp=z+(i-(n-1)/2)*gap,dx=x-face*1.0;
+  const n=d.roles.length,cols=n>5?2:1,per=Math.ceil(n/cols),gap=(dz-1)/per;   // phòng đông người: 2 dãy bàn
+  d.roles.forEach((r,ii)=>{
+    const col=Math.floor(ii/per),i=ii%per,nn=col<cols-1?per:n-per*(cols-1);
+    const zp=z+(i-(nn-1)/2)*gap+(cols>1?(col?gap*.25:-gap*.2):0),dx=x-face*(cols>1?(col?-0.75:1.4):1.0);
     desk(dx,zp,face*Math.PI/2,.6);
     { const seat={x:dx+face*.6,z:zp,rot:-face*Math.PI/2},xin=x+face*(w/2-.55),zDoor=z+(zp>=z?1:-1)*(dz/2-.45),xout=x+face*(w/2+.7);
       const h=makeHuman(d.color,{long:hr()<.45});scene.add(h);
@@ -794,9 +796,9 @@ DEPTS.forEach(d=>{
   if(d.id==="video"){
     box(3,2.6,.05,M(0x3d8a5a,{roughness:.9}),x+1,1.4,-9.82);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.35,.04,12,40),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1}));
-    ring.position.set(x+2,1.6,z-.8);ring.rotation.y=-Math.PI/4;scene.add(ring);
-    cyl(.02,.02,1.6,M(0x111111),x+2,.8,z-.8,8);
-    box(.3,.22,.4,M(0x111111),x+2.1,1.45,z+.6);cyl(.02,.02,1.4,M(0x111111),x+2.1,.7,z+.6,8);
+    ring.position.set(x-2.55,1.6,z+2.2);ring.rotation.y=Math.PI/4;scene.add(ring);
+    cyl(.02,.02,1.6,M(0x111111),x-2.55,.8,z+2.2,8);
+    box(.3,.22,.4,M(0x111111),x-2.55,1.45,z-2.2);cyl(.02,.02,1.4,M(0x111111),x-2.55,.7,z-2.2,8);
   }
 });
 /* Cây xanh */
