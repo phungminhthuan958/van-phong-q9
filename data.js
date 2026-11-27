@@ -31,7 +31,12 @@ export const STATUSES = { pending:"Chờ duyệt", approved:"Đã duyệt", bloc
 
 export const hex = c => "#" + c.toString(16).padStart(6, "0");
 export const zoneOf = id => ZONES.find(z => z.id === id) || { name:id, color:0x888888 };
-export const fmtPrice = v => Number(v).toLocaleString("vi-VN", { minimumFractionDigits:2, maximumFractionDigits:2 }) + " tỷ";
+// Căn bán: giá tính bằng tỷ. Căn cho thuê: giá tính bằng triệu/tháng.
+export const fmtPrice = (v, deal) => deal === "thue"
+  ? Number(v).toLocaleString("vi-VN", { maximumFractionDigits:1 }) + " tr/tháng"
+  : Number(v).toLocaleString("vi-VN", { minimumFractionDigits:2, maximumFractionDigits:2 }) + " tỷ";
+export const DEALS = { ban:"Bán", thue:"Cho thuê" };
+export const TIERS = { tot:"Giá tốt", thitruong:"Giá thị trường", cao:"Giá cao" };
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 
 // Phòng ban & vị trí. Anh sửa tên vị trí / nhiệm vụ tại đây.
@@ -74,7 +79,7 @@ export function postText(u, contact) {
     `📐 ${u.type} · ${u.area} m² · Tầng ${u.floor ?? "-"}`,
     `🧭 Ban công ${u.dir || "-"} · View ${u.view || "-"}`,
     `🛋️ ${u.furnish || "Bàn giao cơ bản"}`,
-    `💰 Giá: ${fmtPrice(u.price)} (~${Math.round(u.price * 1000 / u.area)} tr/m²)`,
+    u.deal === "thue" ? `💰 Giá thuê: ${fmtPrice(u.price, u.deal)}` : `💰 Giá: ${fmtPrice(u.price)} (~${Math.round(u.price * 1000 / u.area)} tr/m²)`,
     `📌 Tình trạng: ${ST[u.status]}`,
     `📞 Liên hệ: ${contact.phone} (Zalo)`,
   ].join("\n");

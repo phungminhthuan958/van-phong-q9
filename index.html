@@ -249,7 +249,7 @@ function drawAlbum(){const p=LB.u.photos;LB.el.querySelector("#lbImg").src=p[LB.
 function goAlbum(d){const n=LB.u.photos.length;LB.i=(LB.i+d+n)%n;drawAlbum()}
 function closeAlbum(){if(!LB)return;LB.el.remove();LB=null;document.body.style.overflow=""}
 addEventListener("keydown",e=>{if(!LB)return;if(e.key==="Escape")closeAlbum();if(e.key==="ArrowRight")goAlbum(1);if(e.key==="ArrowLeft")goAlbum(-1)});
-function msgFor(u){return `Chào anh/chị, em quan tâm căn ${u.code} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price)}). Anh/chị tư vấn giúp em nhé.`}
+function msgFor(u){return `Chào anh/chị, em quan tâm căn ${u.code} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price,u.deal)}). Anh/chị tư vấn giúp em nhé.`}
 function render(){
   let rows=UNITS.filter(u=>(!state.zone||u.zone===state.zone)&&(!state.type||u.type===state.type)&&(!state.status||u.status===state.status)&&(!state.tower||u.tower===state.tower));
   const k=state.sort.replace("-",""), d=state.sort.startsWith("-")?-1:1;
@@ -261,10 +261,10 @@ function render(){
   $("#list").innerHTML=rows.length?rows.map(u=>`
     <article class="unit ${u.status==="sold"?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
       <div class="u-top"><div><div class="u-code">${u.code}</div><div class="u-zone">${zoneOf(u.zone).name} · Toà ${u.tower}</div></div>
-        <div class="u-price">${fmtPrice(u.price)}</div></div>
+        <div class="u-price">${u.deal==="thue"?"Cho thuê · ":""}${fmtPrice(u.price,u.deal)}</div></div>
       ${photosHtml(u)}
       <div class="u-meta"><span><b>${u.type}</b></span><span><b>${u.area}</b> m²</span><span>Tầng <b>${u.floor}</b></span>
-        <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span><span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span><span>${u.furnish}</span>
+        <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span>${u.deal==="thue"?"":`<span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span>`}<span>${u.furnish}</span>
         <span class="st ${u.status}">${ST[u.status]}</span></div>
       <div class="u-act">
         <button class="btn" data-show="${u.code}">Xem trên sa bàn</button>
