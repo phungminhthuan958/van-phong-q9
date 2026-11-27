@@ -81,7 +81,7 @@ export function postText(u, contact) {
     `🛋️ ${u.furnish || "Bàn giao cơ bản"}`,
     u.deal === "thue" ? `💰 Giá thuê: ${fmtPrice(u.price, u.deal)}` : `💰 Giá: ${fmtPrice(u.price)} (~${Math.round(u.price * 1000 / u.area)} tr/m²)`,
     `📌 Tình trạng: ${ST[u.status]}`,
-    `📞 Liên hệ: ${contact.phone} (Zalo)`,
+    `📞 Liên hệ Admin: ${contact.phone} (Zalo)`,
   ].join("\n");
 }
 
@@ -155,7 +155,7 @@ export function unitLink(code) {
   return base + "index.html#can=" + encodeURIComponent(code);
 }
 export function shareText(u, contact) {
-  return postText(u, contact) + "\n👉 Xem ảnh và vị trí trên sa bàn: " + unitLink(u.code);
+  return postText(u, contact) + "\n👉 Xem ảnh và thông tin căn: " + unitLink(u.code);
 }
 const onPhone = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || matchMedia("(max-width:860px)").matches;
 export async function copyText(t) {

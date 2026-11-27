@@ -37,8 +37,8 @@ form{display:grid;gap:12px}
     <h1>Văn phòng 3D và giỏ hàng Grand Park Q9</h1>
     <p>Đăng ký tài khoản để xem giỏ hàng căn hộ cập nhật mỗi ngày: giá, toà, tầng, hướng và tình trạng còn hàng.</p>
     <ul>
-      <li>Khách hàng và cộng tác viên xem giỏ hàng ngay sau khi đăng ký</li>
-      <li>Nhân viên chờ quản trị duyệt để vào phòng ban</li>
+      <li>Đăng ký xong là xem giỏ hàng ngay</li>
+      <li>Mỗi ngày chỉ cần đăng nhập một lần</li>
     </ul>
   </section>
 
@@ -58,14 +58,6 @@ form{display:grid;gap:12px}
       </form>
 
       <form id="fUp" hidden>
-        <div class="f">Bạn là
-          <div class="kinds">
-            <label><input type="radio" name="kind" value="khach" checked>Khách hàng</label>
-            <label><input type="radio" name="kind" value="ctv">Cộng tác viên</label>
-            <label><input type="radio" name="kind" value="nhanvien">Nhân viên</label>
-          </div>
-        </div>
-        <label class="f" id="deptWrap" hidden>Phòng ban<select id="upDept"></select></label>
         <label class="f">Họ và tên<input id="upName" autocomplete="name" required></label>
         <div class="row2">
           <label class="f">Số điện thoại<input id="upPhone" type="tel" autocomplete="tel" pattern="[0-9 +.]{9,15}" required></label>
@@ -81,15 +73,12 @@ form{display:grid;gap:12px}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
-import { DEPTS } from "./data.js";
-import { sb, configured, currentProfile } from "./supa.js";
+import { sb, configured, currentProfile, markLoginToday } from "./supa.js";
 const $ = s => document.querySelector(s);
 const appUrl = new URL("app.html", location.href).href;
 function say(text, type="err"){ const m=$("#msg"); m.textContent=text; m.className="msg "+type; m.hidden=false; }
 function tab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $("#fIn").hidden=t!=="in"; $("#fUp").hidden=t!=="up"; $("#msg").hidden=true; }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
-DEPTS.forEach(d=>$("#upDept").insertAdjacentHTML("beforeend",`<option value="${d.id}">${d.name}</option>`));
-document.querySelectorAll("[name=kind]").forEach(r=>r.addEventListener("change",()=>{$("#deptWrap").hidden=document.querySelector("[name=kind]:checked").value!=="nhanvien"}));
 
 if(!configured) say("Web chưa nối máy chủ đăng nhập. Đang ở chế độ xem thử, bấm Đăng nhập để vào xem.","warn");
 
@@ -107,7 +96,7 @@ async function goIfApproved(){
   const p = await currentProfile();
   if(!p) return;
   if(p.status==="approved"){ let next="app.html"; try{ next=sessionStorage.getItem("afterLogin")||next; sessionStorage.removeItem("afterLogin"); }catch{} location.replace(next); }
-  else if(p.status==="pending") say("Tài khoản nhân viên của bạn đang chờ quản trị duyệt. Khi được duyệt bạn đăng nhập lại là vào được.","warn");
+  else if(p.status==="pending") say("Tài khoản của bạn đang chờ quản trị duyệt. Bạn liên hệ Admin 0933114527 nhé.","warn");
   else { say("Tài khoản này đã bị khoá. Bạn liên hệ quản trị nhé."); await sb.auth.signOut(); }
 }
 if(configured) goIfApproved();
@@ -119,7 +108,7 @@ $("#fIn").addEventListener("submit", async e=>{
   const { error } = await sb.auth.signInWithPassword({ email:$("#inEmail").value.trim(), password:$("#inPass").value });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
-  goIfApproved();
+  markLoginToday(); goIfApproved();
 });
 $("#forgot").addEventListener("click", async ()=>{
   const email=$("#inEmail").value.trim();
@@ -132,15 +121,14 @@ $("#fUp").addEventListener("submit", async e=>{
   e.preventDefault();
   if(!configured) return say("Chế độ xem thử chưa đăng ký được. Khi web nối máy chủ thì đăng ký sẽ hoạt động.","warn");
   const f=e.currentTarget; if(f.dataset.busy) return; f.dataset.busy=1; busy(f,true);
-  const kind=document.querySelector("[name=kind]:checked").value;
   const { data, error } = await sb.auth.signUp({
     email:$("#upEmail").value.trim(), password:$("#upPass").value,
-    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim(), kind, dept: kind==="nhanvien"?$("#upDept").value:null } }
+    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim() } }
   });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
-  if(!data.session) say("Đăng ký xong. Bạn mở email và bấm link xác nhận để kích hoạt tài khoản."+(kind==="nhanvien"?" Sau đó chờ quản trị duyệt.":""),"ok");
-  else goIfApproved();
+  if(!data.session) say("Đăng ký xong. Bạn mở email và bấm link xác nhận để kích hoạt tài khoản.","ok");
+  else { markLoginToday(); goIfApproved(); }
 });
 </script>
 </body>

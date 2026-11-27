@@ -149,7 +149,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <div class="app">
   <header>
     <div class="brand">Văn phòng 3D · Giỏ hàng Grand Park Q9
-      <small>Liên hệ: 0933114527 (gọi hoặc Zalo)</small></div>
+      <small>Liên hệ Admin: 0933114527 (gọi hoặc Zalo)</small></div>
     <nav class="views" aria-label="Góc nhìn">
       <button class="chip" data-view="lobby" aria-pressed="true">Sảnh đón</button>
       <button class="chip" data-view="model" aria-pressed="false">Logo 3D</button>
@@ -197,7 +197,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus } from "./data.js?v=20261127";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus } from "./data.js?v=20261127b";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -268,9 +268,9 @@ function render(){
         <span class="st ${u.status}">${ST[u.status]}</span></div>
       <div class="u-act">
         ${u.status==="sold"?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
-          <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo ${CONTACT.phone}</a>
+          <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo Admin ${CONTACT.phone}</a>
           <a href="${CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}"><i>✉️</i>Nhắn Messenger</a>
-          <a href="tel:${CONTACT.phone}"><i>📞</i>Gọi ${CONTACT.phone}</a>
+          <a href="tel:${CONTACT.phone}"><i>📞</i>Gọi Admin ${CONTACT.phone}</a>
           <button data-copyonly="${u.code}"><i>📋</i>Chép tin nhắn hỏi căn này</button></div></details>`}
         <details class="dd"><summary class="btn">Chia sẻ</summary><div class="dd-menu">
           <button data-share="zalo" data-code="${u.code}"><i>💬</i>Chia sẻ qua Zalo</button>

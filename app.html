@@ -156,8 +156,8 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
         <label class="btn" id="phAdd">+ Thêm ảnh<input type="file" id="phFile" accept="image/*" multiple hidden></label>
         <span class="muted" id="phBusy" hidden>Đang tải ảnh lên…</span>
       </div>
-      <div class="msg warn">Thông tin nội bộ bên dưới chỉ quản trị và phòng Nguồn hàng thấy. Khách và sales chỉ thấy số liên hệ chung.</div>
-      <div class="grid">
+      <div class="msg warn" id="privNote">Thông tin người đăng, người nắm hàng, chủ nhà bên dưới CHỈ QUẢN TRỊ xem được. Nhân viên, cộng tác viên và khách chỉ thấy "Liên hệ Admin".</div>
+      <div class="grid" id="privGrid">
         <label class="f">Người nắm hàng<input id="p_holder"></label>
         <label class="f">Chủ nhà<input id="p_owner_name"></label>
         <label class="f">SĐT chủ nhà<input id="p_owner_phone" type="tel"></label>
@@ -215,7 +215,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus } from "./data.js?v=20261127";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus } from "./data.js?v=20261127b";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -249,7 +249,7 @@ document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>show
 let UNITS = me.demo ? sampleUnits().map((u,i)=>({...u,id:"demo"+i})) : (await loadUnits()) || [];
 // Thông tin nội bộ (người nắm hàng, chủ nhà): chỉ tải khi có quyền.
 const PRIV = {}; const PF = ["holder","owner_name","owner_phone","note","poster_name","poster_phone"];
-async function loadPriv(){ if (!canEdit || me.demo) return; const { data } = await sb.from("unit_private").select("*"); (data||[]).forEach(r=>PRIV[r.unit_id]=r); }
+async function loadPriv(){ if (!isAdmin || me.demo) return; const { data } = await sb.from("unit_private").select("*"); (data||[]).forEach(r=>PRIV[r.unit_id]=r); }
 await loadPriv();
 ZONES.forEach(z => { $("#fZone").insertAdjacentHTML("beforeend", opt(z.id,z.name)); $("#u_zone").insertAdjacentHTML("beforeend", opt(z.id,z.name)); });
 TYPES.forEach(t => $("#u_type").insertAdjacentHTML("beforeend", opt(t.n,t.n)));
@@ -270,7 +270,7 @@ function renderUnits(){
     $("#seed")?.addEventListener("click", seed); return;
   }
   $("#units").innerHTML = rows.map(u=>`<tr data-id="${esc(u.id)}">
-    <td>${u.photos?.length?`<img class="thumb" src="${esc(u.photos[0])}" alt="" loading="lazy">`:""}<b>${esc(u.code)}</b>${u.deal==="thue"?` <span class="st hold">Cho thuê</span>`:""}${canEdit && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
+    <td>${u.photos?.length?`<img class="thumb" src="${esc(u.photos[0])}" alt="" loading="lazy">`:""}<b>${esc(u.code)}</b>${u.deal==="thue"?` <span class="st hold">Cho thuê</span>`:""}${isAdmin && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
     <td>${esc(zoneOf(u.zone).name)} <span class="muted">· ${esc(u.tower)}</span></td>
     <td>${esc(u.type)}</td><td class="num" data-u="m²">${u.area}</td><td class="num" data-u="">Tầng ${u.floor ?? "-"}</td>
     <td>${esc(u.dir||"-")} <span class="muted">· ${esc(u.view||"-")}</span></td>
@@ -324,6 +324,8 @@ function openForm(u){
   F.forEach(k => { if (k!=="tower") $("#u_"+k).value = u ? (u[k] ?? "") : (k==="status"?"ok":k==="zone"?ZONES[0].id:""); });
   if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value="Bàn giao cơ bản"; }
   PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
+  const privOk = isAdmin || !u; $("#privGrid").hidden = !privOk;
+  $("#privNote").textContent = isAdmin ? "Thông tin người đăng, người nắm hàng, chủ nhà bên dưới CHỈ QUẢN TRỊ xem được. Nhân viên, cộng tác viên và khách chỉ thấy \"Liên hệ Admin\"." : (u ? "Thông tin người đăng, người nắm hàng, chủ nhà của căn này chỉ quản trị xem và sửa được." : "Bạn có thể ghi người đăng, người nắm hàng, chủ nhà bên dưới. Sau khi lưu, chỉ quản trị xem được, kể cả bạn cũng không xem lại được.");
   PHOTOS = [...(u?.photos || [])]; renderPhotos();
   // Căn nhập từ nhóm Zalo có thể ghi loại căn, hướng, view, nội thất khác danh sách sẵn: thêm vào lựa chọn để không bị mất khi sửa
   ["type","dir","view","furnish"].forEach(k => { const v = u?.[k], el = $("#u_"+k); if (v && ![...el.options].some(o=>o.value===v)) { el.insertAdjacentHTML("beforeend", opt(v,v)); el.value = v; } });
@@ -389,8 +391,11 @@ $("#unitForm").addEventListener("submit", async e => {
     const q = editing ? sb.from("units").update(row).eq("id", editing.id).select("id").single() : sb.from("units").insert(row).select("id").single();
     const { data, error } = await q;
     if (error) return toast(error.code==="23505" ? "Mã căn này đã có trong giỏ hàng (cùng loại thuê/bán)" : "Không lưu được: "+error.message);
-    const { error: e2 } = await sb.from("unit_private").upsert({ unit_id: data.id, ...priv, updated_at: new Date().toISOString() });
-    if (e2) toast("Đã lưu căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message);
+    const hasPriv = Object.values(priv).some(Boolean);
+    if (isAdmin || (!editing && hasPriv)) {
+      const { error: e2 } = await sb.from("unit_private").upsert({ unit_id: data.id, ...priv, updated_at: new Date().toISOString() }, isAdmin ? {} : { ignoreDuplicates:true });
+      if (e2) toast("Đã lưu căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message);
+    }
     UNITS = await loadUnits(); await loadPriv();
   }
   $("#unitForm").hidden=true; renderUnits(); toast("Đã lưu "+row.code);
@@ -412,7 +417,7 @@ function openView(u){
       ${row("View",u.view)}${row("Nội thất",u.furnish)}${row("Văn phòng 3D",u.hot?"★ Đang hiện (Giá tốt)":"Không hiện")}
     </dl>
     ${u.note?`<div><div class="muted" style="font-size:12px">Ghi chú</div><div style="white-space:pre-wrap">${esc(u.note)}</div></div>`:""}
-    ${canEdit&&Object.values(pv).some(Boolean)?`<div class="vw-priv"><b>Nội bộ (khách và CTV không thấy)</b><dl class="vw-grid" style="margin-top:6px">
+    ${isAdmin&&Object.values(pv).some(Boolean)?`<div class="vw-priv"><b>Nội bộ (chỉ quản trị thấy)</b><dl class="vw-grid" style="margin-top:6px">
       ${row("Người nắm hàng",pv.holder)}${row("Chủ nhà",pv.owner_name)}${row("SĐT chủ nhà",pv.owner_phone)}${row("Người đăng tin",pv.poster_name)}${row("SĐT người đăng",pv.poster_phone)}${row("Ghi chú nội bộ",pv.note)}</dl></div>`:""}
     ${u.updated_at?`<div class="muted" style="font-size:12px">Cập nhật ${new Date(u.updated_at).toLocaleString("vi-VN")}</div>`:""}
     <div class="vw-acts">${canEdit?`<button class="btn primary sm" data-vw="edit">Sửa căn</button>`:""}<button class="btn sm" data-vw="post">📋 Chép bài đăng</button><button class="btn sm" data-vw="zalo">💬 Gửi Zalo</button><button class="btn sm" data-vw="messenger">✉️ Messenger</button></div>`;
@@ -488,7 +493,7 @@ $("#bulkSave").addEventListener("click", async ()=>{
     if (error) { $("#bulkSave").disabled=false; return toast("Không nhập được: "+error.message); }
     const idOf = Object.fromEntries(data.map(r=>[r.code,r.id]));
     const privRows = bulkRows.filter(b=>b.priv.holder||b.priv.owner_name||b.priv.owner_phone).map(b=>({ unit_id:idOf[b.row.code], ...b.priv, updated_at:new Date().toISOString() }));
-    if (privRows.length) { const { error:e2 } = await sb.from("unit_private").upsert(privRows); if (e2) toast("Đã nhập căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message); }
+    if (privRows.length) { const { error:e2 } = await sb.from("unit_private").upsert(privRows, isAdmin ? {} : { ignoreDuplicates:true }); if (e2) toast("Đã nhập căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message); }
     UNITS = await loadUnits(); await loadPriv();
   }
   toast(`Đã nhập ${bulkRows.length} căn`); $("#bulk").hidden=true; $("#bulkText").value=""; $("#bulkResult").innerHTML=""; renderUnits();

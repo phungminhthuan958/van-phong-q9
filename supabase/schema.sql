@@ -212,3 +212,15 @@ alter table public.leads enable row level security;
 drop policy if exists "leads_all" on public.leads;
 create policy "leads_all" on public.leads for all using (public.can_work_leads()) with check (public.can_work_leads());
 grant select, insert, update, delete on public.leads to authenticated;
+
+-- 11. (2026-11-27) Thông tin người đăng / người nắm hàng / chủ nhà: CHỈ QUẢN TRỊ xem.
+--     Phòng Nguồn hàng vẫn ghi được khi thêm căn mới, nhưng không xem lại hay sửa được.
+drop policy if exists "unit_private_all" on public.unit_private;
+drop policy if exists "unit_private_insert" on public.unit_private;
+drop policy if exists "unit_private_admin_select" on public.unit_private;
+drop policy if exists "unit_private_admin_update" on public.unit_private;
+drop policy if exists "unit_private_admin_delete" on public.unit_private;
+create policy "unit_private_insert" on public.unit_private for insert with check (public.can_edit_units());
+create policy "unit_private_admin_select" on public.unit_private for select using (public.is_admin());
+create policy "unit_private_admin_update" on public.unit_private for update using (public.is_admin()) with check (public.is_admin());
+create policy "unit_private_admin_delete" on public.unit_private for delete using (public.is_admin());

@@ -4,10 +4,19 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 export const configured = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 export const sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+// Mỗi ngày (giờ Việt Nam) chỉ cần đăng nhập một lần. Sang ngày mới thì phải đăng nhập lại.
+const LOGIN_DAY_KEY = "q9LoginDay";
+const vnToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+export function markLoginToday() { try { localStorage.setItem(LOGIN_DAY_KEY, vnToday()); } catch {} }
+function loggedInToday() { try { return localStorage.getItem(LOGIN_DAY_KEY) === vnToday(); } catch { return true; } }
+
 export async function currentProfile() {
   if (!sb) return null;
+  // Link trong email (xác nhận / đặt lại mật khẩu) cũng tính là một lần đăng nhập
+  if (/access_token|type=recovery|type=signup/.test(location.hash)) markLoginToday();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return null;
+  if (!loggedInToday()) { await sb.auth.signOut(); return null; }
   const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
   if (error) { console.error(error); return { id: session.user.id, email: session.user.email, status: "pending" }; }
   return data;
@@ -29,4 +38,4 @@ export async function loadUnits() {
   return data.map(r => ({ ...r, area: +r.area, price: +r.price }));
 }
 
-export async function signOut() { if (sb) await sb.auth.signOut(); location.replace("login.html"); }
+export async function signOut() { try { localStorage.removeItem(LOGIN_DAY_KEY); } catch {} if (sb) await sb.auth.signOut(); location.replace("login.html"); }
