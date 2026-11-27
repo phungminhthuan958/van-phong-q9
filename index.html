@@ -847,8 +847,7 @@ let lastT=performance.now();
   if(!reduce){logoG.rotation.y=now/9000}
   updateAgents(reduce?0:dt,now/1000);
   controls.update();renderer.render(scene,camera)})();
-/* Khách và cộng tác viên chỉ xem giỏ hàng, không xem thông tin phòng ban nội bộ */
-if(!(["nhanvien","sales","ctv"].includes(me.kind)||me.role==="admin")){document.querySelector('[data-tab="dept"]').hidden=true;showTab("cart")}
+/* Mọi tài khoản (khách, chủ nhà, sales, CTV) đều xem được tab Phòng ban */
 openFromHash();
 </script>
 </body>
