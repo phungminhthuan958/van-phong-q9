@@ -18,7 +18,7 @@ export async function currentProfile() {
 export async function requireApproved() {
   if (!configured) return { demo: true, full_name: "Chế độ xem thử", kind: "nhanvien", role: "admin", status: "approved" };
   const p = await currentProfile();
-  if (!p || p.status !== "approved") { location.replace("login.html"); return new Promise(() => {}); }
+  if (!p || p.status !== "approved") { try { if (location.hash) sessionStorage.setItem("afterLogin", (location.pathname.split("/").pop() || "index.html") + location.hash); } catch {} location.replace("login.html"); return new Promise(() => {}); }
   return p;
 }
 

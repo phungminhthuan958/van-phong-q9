@@ -142,3 +142,64 @@ export function parseZalo(text){
   }
   return out;
 }
+
+/* ---------- Chia sẻ căn qua Zalo / Messenger ---------- */
+// Link mở thẳng căn đó trên web (người nhận phải đăng ký tài khoản mới xem được)
+export function unitLink(code) {
+  const base = location.href.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
+  return base + "index.html#can=" + encodeURIComponent(code);
+}
+export function shareText(u, contact) {
+  return postText(u, contact) + "\n👉 Xem ảnh và vị trí trên sa bàn: " + unitLink(u.code);
+}
+const onPhone = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || matchMedia("(max-width:860px)").matches;
+export async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = t; ta.style.cssText = "position:fixed;opacity:0;top:0";
+    document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand("copy"); } catch {} ta.remove(); return ok;
+  }
+}
+// via: "zalo" | "messenger" | "native" | "copy"
+export async function shareUnit(u, contact, via, toast) {
+  const text = shareText(u, contact), link = unitLink(u.code);
+  if (via === "native" && navigator.share) { try { await navigator.share({ title: "Căn " + u.code, text }); } catch {} return; }
+  if (via === "zalo" && onPhone() && navigator.share) {
+    try { await navigator.share({ title: "Căn " + u.code, text }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  const ok = await copyText(text);
+  const pasted = ok ? "Đã chép bài đăng kèm link." : "Trình duyệt chưa cho chép, anh bấm Chép bài đăng thử lại.";
+  if (via === "zalo") { window.open("https://chat.zalo.me/", "_blank", "noopener"); toast(pasted + " Mở Zalo, chọn người nhận rồi dán vào."); }
+  else if (via === "messenger") {
+    if (onPhone()) { location.href = "fb-messenger://share/?link=" + encodeURIComponent(link); toast(pasted + " Có thể dán thêm nội dung vào tin nhắn."); }
+    else { window.open("https://www.messenger.com/", "_blank", "noopener"); toast(pasted + " Mở Messenger, chọn người nhận rồi dán vào."); }
+  } else toast(pasted);
+}
+
+/* ---------- Thanh thả xuống (menu) dùng chung ---------- */
+// <details class="dd"><summary>Tên nút</summary><div class="dd-menu">...các nút...</div></details>
+function placeMenu(d) {
+  const m = d.querySelector(".dd-menu"), r = d.querySelector("summary").getBoundingClientRect();
+  m.style.minWidth = Math.max(200, r.width) + "px";
+  const w = m.offsetWidth, h = m.offsetHeight;
+  const left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8, r.left > innerWidth / 2 ? r.right - w : r.left));
+  let top = r.bottom + 4; if (top + h > innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  m.style.left = left + "px"; m.style.top = top + "px";
+}
+export function initMenus() {
+  const closeAll = except => document.querySelectorAll("details.dd[open]").forEach(d => d !== except && (d.open = false));
+  document.addEventListener("toggle", e => { const d = e.target; if (d.matches?.("details.dd") && d.open) { closeAll(d); placeMenu(d); } }, true);
+  document.addEventListener("click", e => {
+    document.querySelectorAll("details.dd[open]").forEach(d => {
+      if (!d.contains(e.target)) d.open = false;
+      else if (e.target.closest(".dd-menu button, .dd-menu a") && !e.target.closest('[data-confirm="1"]')) d.open = false;
+    });
+  });
+  addEventListener("keydown", e => { if (e.key === "Escape") closeAll(); });
+  addEventListener("resize", () => closeAll());
+  // Cuộn trang thì menu chạy theo nút; nút ra khỏi màn hình thì đóng menu
+  addEventListener("scroll", () => document.querySelectorAll("details.dd[open]").forEach(d => {
+    const r = d.querySelector("summary").getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) d.open = false; else placeMenu(d);
+  }), { passive: true, capture: true });
+}

@@ -137,3 +137,12 @@ create policy "unit_photos_delete" on storage.objects for delete to authenticate
 drop policy if exists "unit_photos_select" on storage.objects;
 create policy "unit_photos_select" on storage.objects for select to authenticated
   using (bucket_id = 'unit-photos' and public.can_edit_units());
+
+-- 8. Căn "giá tốt": chỉ những căn này hiện ở giỏ hàng văn phòng 3D (thêm ngày 2026-11-27)
+alter table public.units add column if not exists hot boolean not null default false;
+-- Cập nhật tức thì: sửa/xoá căn ở trang Quản lý thì văn phòng 3D đổi ngay
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='units') then
+    alter publication supabase_realtime add table public.units;
+  end if;
+end $$;

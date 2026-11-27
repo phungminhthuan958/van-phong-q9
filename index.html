@@ -128,6 +128,17 @@ label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spac
   header{gap:8px;padding-block:10px}
   .brand{font-size:15px}
 }
+details.dd{position:relative;display:inline-block}
+details.dd>summary{list-style:none;cursor:pointer;user-select:none}
+details.dd>summary::-webkit-details-marker{display:none}
+details.dd>summary::after{content:"▾";margin-left:6px;font-size:11px;opacity:.85}
+details.dd[open]>summary{border-color:var(--brass)}
+.dd-menu{position:fixed;z-index:60;background:#1c2e36;border:1px solid var(--line);border-radius:10px;padding:6px;display:grid;gap:2px;box-shadow:0 14px 36px rgba(0,0,0,.5)}
+.dd-menu button,.dd-menu a{appearance:none;background:none;border:none;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;font:inherit;font-size:13.5px;cursor:pointer;color:var(--text);white-space:nowrap;text-decoration:none;text-align:left;width:100%}
+.dd-menu button:hover,.dd-menu a:hover{background:rgba(214,167,92,.15)}
+.dd-menu .sep{height:1px;background:var(--line);margin:4px 6px}
+.dd-menu .danger{color:var(--sold)}
+.dd-menu i{font-style:normal;width:20px;text-align:center;flex:none}
 /* Điện thoại: không tự phóng to khi bấm vào ô chọn, không phóng to khi chạm 2 lần */
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 @media (max-width:860px){select,input{font-size:16px}}
@@ -143,9 +154,10 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
       <button class="chip" data-view="lobby" aria-pressed="true">Sảnh đón</button>
       <button class="chip" data-view="model" aria-pressed="false">Sa bàn dự án</button>
       <button class="chip" data-view="top" aria-pressed="false">Toàn cảnh</button>
-      <button class="chip" id="spin" aria-pressed="false">Tự xoay</button>
-      <a class="chip" id="manage" href="app.html" hidden style="text-decoration:none">Quản lý</a>
-      <button class="chip" id="logout">Đăng xuất</button>
+      <details class="dd"><summary class="chip">Menu</summary><div class="dd-menu">
+        <button id="spin" aria-pressed="false"><i>⟳</i><span>Tự xoay sa bàn: tắt</span></button>
+        <a id="manage" href="app.html" hidden><i>🗂️</i>Trang quản lý</a>
+        <button id="logout"><i>⎋</i>Đăng xuất</button></div></details>
     </nav>
   </header>
 
@@ -164,7 +176,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
     </div>
     <div id="cartPane" class="pane" hidden>
     <div class="cart-head">
-      <h2>Giỏ hàng <b id="count"></b></h2>
+      <h2>Căn giá tốt <b id="count"></b></h2>
       <div class="sample" id="sampleNote">Dữ liệu mẫu để xem giao diện. Giá, mã căn và trạng thái chưa phải hàng thật.</div>
       <div class="filters">
         <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
@@ -185,12 +197,13 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits } from "./data.js";
-import { requireApproved, loadUnits, signOut } from "./supa.js";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus } from "./data.js";
+import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
-const live = me.demo ? null : await loadUnits();
-const IS_SAMPLE = !(live && live.length);
-const UNITS = IS_SAMPLE ? sampleUnits() : live;
+// Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
+const SHOW = u => u.hot && u.status !== "sold";
+const IS_SAMPLE = !!me.demo;
+let UNITS = (IS_SAMPLE ? sampleUnits().map((u,i)=>({...u,hot:i%3===0})) : (await loadUnits()) || []).filter(SHOW);
 
 /* ====== Giỏ hàng UI ====== */
 const $=s=>document.querySelector(s);
@@ -243,6 +256,7 @@ function render(){
   rows.sort((a,b)=>(a[k]-b[k])*d);
   const avail=rows.filter(u=>u.status==="ok").length;
   $("#count").textContent=`${rows.length} căn · ${avail} còn hàng`;
+  if(!UNITS.length){$("#list").innerHTML=`<div class="empty">Hiện chưa có căn giá tốt.<br>Nhắn Zalo <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">${CONTACT.phone}</a> để nhận giỏ hàng đầy đủ.</div>`;return}
   $("#towerPill").hidden=!state.tower; $("#towerName").textContent=state.tower;
   $("#list").innerHTML=rows.length?rows.map(u=>`
     <article class="unit ${u.status==="sold"?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
@@ -252,16 +266,27 @@ function render(){
       <div class="u-meta"><span><b>${u.type}</b></span><span><b>${u.area}</b> m²</span><span>Tầng <b>${u.floor}</b></span>
         <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span><span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span><span>${u.furnish}</span>
         <span class="st ${u.status}">${ST[u.status]}</span></div>
-      ${u.status==="sold"?"":`<div class="u-act">
-        <a class="btn zalo" href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}">Nhắn Zalo</a>
-        <a class="btn fb" href="${CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}">Messenger</a>
-        <button class="btn" data-copyonly="${u.code}">Chép tin nhắn</button>
-        <button class="btn" data-show="${u.code}">Xem trên sa bàn</button></div>`}
+      <div class="u-act">
+        <button class="btn" data-show="${u.code}">Xem trên sa bàn</button>
+        ${u.status==="sold"?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
+          <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo ${CONTACT.phone}</a>
+          <a href="${CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}"><i>✉️</i>Nhắn Messenger</a>
+          <a href="tel:${CONTACT.phone}"><i>📞</i>Gọi ${CONTACT.phone}</a>
+          <button data-copyonly="${u.code}"><i>📋</i>Chép tin nhắn hỏi căn này</button></div></details>`}
+        <details class="dd"><summary class="btn">Chia sẻ</summary><div class="dd-menu">
+          <button data-share="zalo" data-code="${u.code}"><i>💬</i>Chia sẻ qua Zalo</button>
+          <button data-share="messenger" data-code="${u.code}"><i>✉️</i>Chia sẻ qua Messenger</button>
+          ${navigator.share?`<button data-share="native" data-code="${u.code}"><i>↗</i>Chia sẻ ứng dụng khác…</button>`:""}
+          <button data-share="copy" data-code="${u.code}"><i>📋</i>Chép bài đăng kèm link</button></div></details></div>
     </article>`).join(""):`<div class="empty">Không có căn phù hợp bộ lọc.</div>`;
 }
 let toastT; function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>e.hidden=true,2200)}
-function copy(text){ if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(()=>toast("Đã chép tin nhắn, dán vào Zalo/Messenger"),()=>toast("Không chép được, anh chép tay giúp em"))} }
+function copy(text){ copyText(text).then(ok=>toast(ok?"Đã chép tin nhắn, dán vào Zalo/Messenger":"Không chép được, anh chép tay giúp em")) }
+initMenus();
 $("#list").addEventListener("click",e=>{
+  const sh=e.target.closest("[data-share]");
+  if(sh){shareUnit(UNITS.find(x=>x.code===sh.dataset.code),CONTACT,sh.dataset.share,toast);return}
+  if(e.target.closest("summary")||(e.target.closest(".dd-menu")&&!e.target.closest("[data-copy],[data-copyonly]")))return;
   const ph=e.target.closest("[data-photos]");
   if(ph){const u=UNITS.find(x=>x.code===ph.dataset.photos);const imgs=[...ph.querySelectorAll("img")];const k=Math.max(0,imgs.indexOf(e.target));openAlbum(u,k);showUnit(u);return}
   const c=e.target.closest("[data-copy],[data-copyonly],[data-show]");
@@ -329,9 +354,9 @@ for(let i=0;i<26;i++) box(.5,5.4,.08,M(i%2?0x6b4a2f:0x5d4029,{roughness:.6}),-12
 /* Màn hình lớn trên tường */
 const avail=UNITS.filter(u=>u.status==="ok").length;
 const screenTex=textTex([
-  {t:"GIỎ HÀNG HÔM NAY",s:54,x:60,y:110},
-  {t:`${avail} căn còn hàng`,s:110,x:60,y:250,c:"#e8efe9",w:700},
-  {t:`${ZONES.length} phân khu · ${UNITS.length} căn đang mở bán ${IS_SAMPLE?"(dữ liệu mẫu)":""}`,s:38,x:60,y:330,c:"#93a9a6",w:400},
+  {t:"CĂN GIÁ TỐT HÔM NAY",s:54,x:60,y:110},
+  {t:UNITS.length?`${avail} căn giá tốt`:"Đang cập nhật",s:110,x:60,y:250,c:"#e8efe9",w:700},
+  {t:`${ZONES.length} phân khu · Grand Park Q9 ${IS_SAMPLE?"(dữ liệu mẫu)":""}`,s:38,x:60,y:330,c:"#93a9a6",w:400},
   {t:"Quét QR / nhắn Zalo để nhận bảng giá mới nhất",s:36,x:60,y:440,c:"#d6a75c",w:500}]);
 box(8.4,4.4,.12,M(0x050708),0,3.2,-9.7);
 const scr=new THREE.Mesh(new THREE.PlaneGeometry(8,4.0),new THREE.MeshBasicMaterial({map:screenTex}));scr.position.set(0,3.2,-9.62);scene.add(scr);
@@ -495,7 +520,29 @@ function goView(name,p,t){const v=p?{p,t}:VIEWSET[name];tween={from:camera.posit
   document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===name))}
 camera.position.set(0,12,22);controls.target.set(0,1,0);goView("lobby");
 document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>goView(b.dataset.view)));
-$("#spin").addEventListener("click",e=>{controls.autoRotate=!controls.autoRotate;controls.autoRotateSpeed=.8;e.currentTarget.setAttribute("aria-pressed",controls.autoRotate)});
+$("#spin").addEventListener("click",e=>{controls.autoRotate=!controls.autoRotate;controls.autoRotateSpeed=.8;e.currentTarget.setAttribute("aria-pressed",controls.autoRotate);e.currentTarget.querySelector("span").textContent="Tự xoay sa bàn: "+(controls.autoRotate?"bật":"tắt")});
+/* Mở thẳng một căn từ link chia sẻ: index.html#can=S9.03-1205 */
+function openFromHash(){
+  const m=location.hash.match(/^#can=(.+)$/); if(!m) return;
+  const u=UNITS.find(x=>x.code===decodeURIComponent(m[1]));
+  if(!u){toast("Căn này không còn trong giỏ hàng");return}
+  showTab("cart");state.zone="";state.type="";state.status="";state.tower="";["#fZone","#fType","#fStatus"].forEach(s=>$(s).value="");
+  state.active=u.code;render();
+  document.querySelector(`.unit[data-code="${CSS.escape(u.code)}"]`)?.scrollIntoView({block:"center"});
+  showUnit(u);
+}
+addEventListener("hashchange",openFromHash);
+/* Đồng bộ với trang Quản lý: có ai thêm/sửa/xoá căn là giỏ hàng tự cập nhật */
+let reloadT;
+async function reloadUnits(){
+  const d=await loadUnits(); if(!d) return;
+  UNITS=d.filter(SHOW); render();
+  if(state.active&&!UNITS.some(u=>u.code===state.active)){state.active="";highlight()}
+}
+if(sb&&!me.demo){
+  sb.channel("units-live").on("postgres_changes",{event:"*",schema:"public",table:"units"},()=>{clearTimeout(reloadT);reloadT=setTimeout(reloadUnits,400)}).subscribe();
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)reloadUnits()});
+}
 
 function highlight(){
   towers.forEach(g=>{const d=g.userData;
@@ -545,6 +592,7 @@ let lastT=performance.now();
   controls.update();renderer.render(scene,camera)})();
 /* Khách và cộng tác viên chỉ xem giỏ hàng, không xem thông tin phòng ban nội bộ */
 if(!(me.kind==="nhanvien"||me.role==="admin")){document.querySelector('[data-tab="dept"]').hidden=true;showTab("cart")}
+openFromHash();
 </script>
 </body>
 </html>

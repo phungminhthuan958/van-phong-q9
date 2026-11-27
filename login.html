@@ -106,7 +106,7 @@ const vn = e => VN[e?.message] || e?.message || "Có lỗi, bạn thử lại gi
 async function goIfApproved(){
   const p = await currentProfile();
   if(!p) return;
-  if(p.status==="approved") location.replace("app.html");
+  if(p.status==="approved"){ let next="app.html"; try{ next=sessionStorage.getItem("afterLogin")||next; sessionStorage.removeItem("afterLogin"); }catch{} location.replace(next); }
   else if(p.status==="pending") say("Tài khoản nhân viên của bạn đang chờ quản trị duyệt. Khi được duyệt bạn đăng nhập lại là vào được.","warn");
   else { say("Tài khoản này đã bị khoá. Bạn liên hệ quản trị nhé."); await sb.auth.signOut(); }
 }
