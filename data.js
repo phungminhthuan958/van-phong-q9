@@ -25,6 +25,9 @@ export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59
 export const DIRS = ["Đông Nam","Tây Bắc","Đông Bắc","Tây Nam","Nam","Bắc","Đông","Tây"];
 export const VIEWS = ["Nội khu","Công viên 36ha","Hồ bơi","Thành phố","Sông"];
 export const ST = { ok:"Còn hàng", hold:"Đang giữ chỗ", sold:"Đã bán" };
+// Căn cho thuê: "sold" hiển thị là "Đã cho thuê"
+export const stOf = (status, deal) => status==="sold" && deal==="thue" ? "Đã cho thuê" : ST[status];
+export const stList = deal => Object.keys(ST).map(k => [k, stOf(k, deal)]);
 export const KINDS = { khach:"Khách hàng", chunha:"Chủ nhà", sales:"Sales", ctv:"Cộng tác viên", nhanvien:"Nhân viên" };
 export const ROLES = { member:"Thành viên", lead:"Trưởng phòng", admin:"Quản trị" };
 export const STATUSES = { pending:"Chờ duyệt", approved:"Đã duyệt", blocked:"Đã chặn" };
@@ -80,7 +83,7 @@ export function postText(u, contact) {
     `🧭 Ban công ${u.dir || "-"} · View ${u.view || "-"}`,
     `🛋️ ${u.furnish || "Bàn giao cơ bản"}`,
     u.deal === "thue" ? `💰 Giá thuê: ${fmtPrice(u.price, u.deal)}` : `💰 Giá: ${fmtPrice(u.price)} (~${Math.round(u.price * 1000 / u.area)} tr/m²)`,
-    `📌 Tình trạng: ${ST[u.status]}`,
+    `📌 Tình trạng: ${stOf(u.status,u.deal)}`,
     contact.phone ? `📞 Liên hệ${contact.label ? " " + contact.label : ""}: ${contact.phone} (Zalo)` : "",
   ].filter(Boolean).join("\n");
 }

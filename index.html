@@ -182,7 +182,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
       <div class="filters">
         <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
         <label class="f">Loại căn<select id="fType"><option value="">Tất cả</option></select></label>
-        <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option></select></label>
+        <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán / Đã cho thuê</option></select></label>
         <label class="f">Sắp xếp<select id="fSort"><option value="price">Giá tăng dần</option><option value="-price">Giá giảm dần</option><option value="area">Diện tích</option></select></label>
       </div>
       <div class="tower-pill" id="towerPill" hidden>Đang lọc toà <b id="towerName"></b> <button id="clearTower">Bỏ lọc</button></div>
@@ -198,7 +198,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink } from "./data.js?v=20261127g";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf } from "./data.js?v=20261127h";
 import { sb, requireApproved, loadUnits, signOut, initNotices } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -280,7 +280,7 @@ function render(){
       ${photosHtml(u)}
       <div class="u-meta"><span><b>${u.type}</b></span><span><b>${u.area}</b> m²</span><span>Tầng <b>${u.floor}</b></span>
         <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span>${u.deal==="thue"?"":`<span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span>`}<span>${u.furnish}</span>
-        <span class="st ${u.status}">${ST[u.status]}</span></div>
+        <span class="st ${u.status}">${stOf(u.status,u.deal)}</span></div>
       <div class="u-act">
         ${u.status==="sold"?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
           <a href="https://zalo.me/${VIEW_CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo ${VIEW_CONTACT.label} ${VIEW_CONTACT.phone}</a>
