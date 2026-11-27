@@ -81,6 +81,7 @@ main>section{min-width:0;display:grid;gap:14px}
 <nav class="tabs" role="tablist">
   <button class="tab" data-tab="cart" aria-selected="true">Giỏ hàng</button>
   <button class="tab" data-tab="people" id="tabPeople" hidden>Tài khoản <span class="badge" id="pendingCount" hidden></span></button>
+  <button class="tab" data-tab="leads" id="tabLeads" hidden>Khách & chủ nhà</button>
   <button class="tab" data-tab="mine" id="tabMine" hidden>Phòng của tôi</button>
 </nav>
 
@@ -88,6 +89,7 @@ main>section{min-width:0;display:grid;gap:14px}
   <section id="paneCart">
     <div class="bar">
       <label class="f">Tìm mã căn<input id="q" placeholder="VD: S9.03"></label>
+      <label class="f">Thuê / bán<select id="fDeal"><option value="">Tất cả</option><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
       <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
       <label class="f">Văn phòng 3D<select id="fHot"><option value="">Tất cả căn</option><option value="1">Chỉ căn giá tốt</option><option value="0">Căn chưa đánh dấu</option></select></label>
       <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option></select></label>
@@ -116,6 +118,7 @@ main>section{min-width:0;display:grid;gap:14px}
       <h3 id="formTitle">Thêm căn</h3>
       <div class="grid">
         <label class="f">Mã căn<input id="u_code" required placeholder="S9.03-1205"></label>
+        <label class="f">Thuê / bán<select id="u_deal"><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
         <label class="f">Phân khu<select id="u_zone"></select></label>
         <label class="f">Toà<select id="u_tower"></select></label>
         <label class="f">Loại căn<select id="u_type"></select></label>
@@ -123,7 +126,8 @@ main>section{min-width:0;display:grid;gap:14px}
         <label class="f">Tầng<input id="u_floor" type="number" min="1" max="60"></label>
         <label class="f">Hướng ban công<select id="u_dir"></select></label>
         <label class="f">View<select id="u_view"></select></label>
-        <label class="f">Giá (tỷ)<input id="u_price" type="number" step="0.01" min="0.1" required></label>
+        <label class="f"><span id="priceLbl">Giá (tỷ)</span><input id="u_price" type="number" step="0.01" min="0.1" required></label>
+        <label class="f">Mức giá<select id="u_tier"><option value="">Chưa xếp</option><option value="tot">Giá tốt</option><option value="thitruong">Giá thị trường</option><option value="cao">Giá cao</option></select></label>
         <label class="f">Trạng thái<select id="u_status"><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option></select></label>
         <label class="f">Nội thất<select id="u_furnish"><option>Bàn giao cơ bản</option><option>Full nội thất</option></select></label>
         <label class="f">Ghi chú (khách cũng thấy)<input id="u_note"></label>
@@ -141,6 +145,8 @@ main>section{min-width:0;display:grid;gap:14px}
         <label class="f">Chủ nhà<input id="p_owner_name"></label>
         <label class="f">SĐT chủ nhà<input id="p_owner_phone" type="tel"></label>
         <label class="f">Ghi chú nội bộ<input id="p_note" placeholder="Giá chốt, hoa hồng..."></label>
+        <label class="f">Người đăng tin (Zalo)<input id="p_poster_name"></label>
+        <label class="f">SĐT người đăng<input id="p_poster_phone" type="tel"></label>
       </div>
       <div class="acts"><button class="btn primary" type="submit">Lưu</button><button class="btn" type="button" id="cancelForm">Huỷ</button></div>
     </form>
@@ -161,13 +167,37 @@ main>section{min-width:0;display:grid;gap:14px}
     </table></div>
   </section>
 
+  <section id="paneLeads" hidden>
+    <div class="bar">
+      <label class="f">Tìm tên / SĐT<input id="lq"></label>
+      <label class="f">Là<select id="lWho"><option value="">Tất cả</option><option value="chu">Chủ nhà</option><option value="khach">Khách</option><option value="sales">Sales</option></select></label>
+      <label class="f">Trạng thái<select id="lStatus"><option value="">Tất cả</option></select></label>
+    </div>
+    <form class="panel" id="leadForm">
+      <h3>Thêm số cần khai thác</h3>
+      <p class="muted" style="margin:0">Phòng Facebook, Zalo, Nguồn hàng có SĐT khách hoặc chủ nhà thì thêm ở đây. Mỗi ngày Claude nhắn Zalo hỏi nhu cầu và ghi lại kết quả.</p>
+      <div class="grid">
+        <label class="f">SĐT<input id="l_phone" type="tel" required></label>
+        <label class="f">Tên<input id="l_name"></label>
+        <label class="f">Là<select id="l_who"><option value="chu">Chủ nhà</option><option value="khach">Khách</option><option value="sales">Sales</option></select></label>
+        <label class="f">Nguồn<input id="l_source" placeholder="VD: Group Facebook Grand Park"></label>
+        <label class="f">Ghi chú<input id="l_note" placeholder="VD: hỏi thuê 2PN dưới 8 triệu"></label>
+      </div>
+      <div class="acts"><button class="btn primary" type="submit">Thêm</button></div>
+    </form>
+    <div class="tablewrap"><table>
+      <thead><tr><th>SĐT · Tên</th><th>Là</th><th>Nguồn</th><th>Nhu cầu · Ghi chú</th><th>Trạng thái</th><th>Nhắn lần cuối</th></tr></thead>
+      <tbody id="leads"></tbody>
+    </table></div>
+  </section>
+
   <section id="paneMine" hidden></section>
 </main>
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus } from "./data.js";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus } from "./data.js";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -194,13 +224,13 @@ $("#addBtn").hidden = !canEdit;
 $("#bulkBtn").hidden = !canEdit;
 $("#zaloBtn").hidden = !canEdit;
 
-function showTab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $("#paneCart").hidden=t!=="cart"; $("#panePeople").hidden=t!=="people"; $("#paneMine").hidden=t!=="mine"; }
+function showTab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $("#paneCart").hidden=t!=="cart"; $("#panePeople").hidden=t!=="people"; $("#paneMine").hidden=t!=="mine"; $("#paneLeads").hidden=t!=="leads"; }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
 
 /* ---------- Giỏ hàng ---------- */
 let UNITS = me.demo ? sampleUnits().map((u,i)=>({...u,id:"demo"+i})) : (await loadUnits()) || [];
 // Thông tin nội bộ (người nắm hàng, chủ nhà): chỉ tải khi có quyền.
-const PRIV = {}; const PF = ["holder","owner_name","owner_phone","note"];
+const PRIV = {}; const PF = ["holder","owner_name","owner_phone","note","poster_name","poster_phone"];
 async function loadPriv(){ if (!canEdit || me.demo) return; const { data } = await sb.from("unit_private").select("*"); (data||[]).forEach(r=>PRIV[r.unit_id]=r); }
 await loadPriv();
 ZONES.forEach(z => { $("#fZone").insertAdjacentHTML("beforeend", opt(z.id,z.name)); $("#u_zone").insertAdjacentHTML("beforeend", opt(z.id,z.name)); });
@@ -209,21 +239,24 @@ DIRS.forEach(d => $("#u_dir").insertAdjacentHTML("beforeend", opt(d,d)));
 VIEWS.forEach(v => $("#u_view").insertAdjacentHTML("beforeend", opt(v,v)));
 const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); $("#u_tower").innerHTML = z.towers.map(t=>opt(t,t,sel)).join(""); };
 $("#u_zone").addEventListener("change", ()=>fillTowers()); fillTowers();
-["#q","#fZone","#fStatus","#fHot"].forEach(s=>$(s).addEventListener("input",renderUnits));
+["#q","#fZone","#fStatus","#fHot","#fDeal"].forEach(s=>$(s).addEventListener("input",renderUnits));
+const setPriceLbl = () => { $("#priceLbl").textContent = $("#u_deal").value==="thue" ? "Giá thuê (triệu/tháng)" : "Giá (tỷ)"; };
+$("#u_deal").addEventListener("change", setPriceLbl);
 
 function renderUnits(){
-  const q=$("#q").value.trim().toLowerCase(), z=$("#fZone").value, s=$("#fStatus").value, h=$("#fHot").value;
-  const rows = UNITS.filter(u=>(!q||u.code.toLowerCase().includes(q))&&(!z||u.zone===z)&&(!s||u.status===s)&&(!h||!!u.hot===(h==="1"))).sort((a,b)=>a.price-b.price);
+  const q=$("#q").value.trim().toLowerCase(), z=$("#fZone").value, s=$("#fStatus").value, h=$("#fHot").value, dl=$("#fDeal").value;
+  const rows = UNITS.filter(u=>(!q||u.code.toLowerCase().includes(q))&&(!z||u.zone===z)&&(!s||u.status===s)&&(!h||!!u.hot===(h==="1"))&&(!dl||(u.deal||"ban")===dl))
+    .sort((a,b)=>(a.deal||"ban").localeCompare(b.deal||"ban")||a.price-b.price);
   if (!UNITS.length) {
     $("#units").innerHTML = `<tr><td colspan="9" class="empty">Giỏ hàng đang trống.${canEdit?` Bấm "Thêm căn" để nhập căn đầu tiên, hoặc <button class="btn sm" id="seed">nạp 48 căn mẫu</button> để xem thử (nhớ xoá trước khi gửi khách).`:""}</td></tr>`;
     $("#seed")?.addEventListener("click", seed); return;
   }
   $("#units").innerHTML = rows.map(u=>`<tr data-id="${esc(u.id)}">
-    <td>${u.photos?.length?`<img class="thumb" src="${esc(u.photos[0])}" alt="" loading="lazy">`:""}<b>${esc(u.code)}</b>${canEdit && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
+    <td>${u.photos?.length?`<img class="thumb" src="${esc(u.photos[0])}" alt="" loading="lazy">`:""}<b>${esc(u.code)}</b>${u.deal==="thue"?` <span class="st hold">Cho thuê</span>`:""}${canEdit && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
     <td>${esc(zoneOf(u.zone).name)} <span class="muted">· ${esc(u.tower)}</span></td>
     <td>${esc(u.type)}</td><td class="num" data-u="m²">${u.area}</td><td class="num" data-u="">Tầng ${u.floor ?? "-"}</td>
     <td>${esc(u.dir||"-")} <span class="muted">· ${esc(u.view||"-")}</span></td>
-    <td class="price">${fmtPrice(u.price)}</td>
+    <td class="price">${fmtPrice(u.price,u.deal)}${u.tier?`<div class="muted" style="font-size:12px;font-weight:400">${esc(TIERS[u.tier]||"")}</div>`:""}</td>
     <td>${canEdit ? `<select data-status>${Object.entries(ST).map(([k,l])=>opt(k,l,u.status)).join("")}</select>` : `<span class="st ${u.status}">${ST[u.status]}</span>`}</td>
     <td><div class="acts">${canEdit?`<button class="btn sm star${u.hot?" on":""}" data-hot aria-pressed="${!!u.hot}" title="Bật để hiện căn này ở giỏ hàng văn phòng 3D">★ Giá tốt</button><button class="btn sm" data-edit>Sửa</button>`:(u.hot?`<span class="st ok">★ Giá tốt</span>`:"")}<details class="dd"><summary class="btn sm">Thao tác</summary><div class="dd-menu">
       <button data-post><i>📋</i>Chép bài đăng</button>
@@ -265,14 +298,16 @@ $("#units").addEventListener("click", async e => {
   }
 });
 let editing = null;
-const F = ["code","zone","tower","type","area","floor","dir","view","price","status","furnish","note"];
+const F = ["code","deal","zone","tower","type","area","floor","dir","view","price","tier","status","furnish","note"];
 function openForm(u){
   editing = u || null; $("#formTitle").textContent = u ? `Sửa căn ${u.code}` : "Thêm căn";
   F.forEach(k => { if (k!=="tower") $("#u_"+k).value = u ? (u[k] ?? "") : (k==="status"?"ok":k==="zone"?ZONES[0].id:""); });
   if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value="Bàn giao cơ bản"; }
   PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
   PHOTOS = [...(u?.photos || [])]; renderPhotos();
-  $("#u_hot").checked = !!u?.hot;
+  // Căn nhập từ nhóm Zalo có thể ghi loại căn, hướng, view, nội thất khác danh sách sẵn: thêm vào lựa chọn để không bị mất khi sửa
+  ["type","dir","view","furnish"].forEach(k => { const v = u?.[k], el = $("#u_"+k); if (v && ![...el.options].some(o=>o.value===v)) { el.insertAdjacentHTML("beforeend", opt(v,v)); el.value = v; } });
+  $("#u_hot").checked = !!u?.hot; if (!u) $("#u_deal").value = "ban"; setPriceLbl();
   fillTowers(u?.tower); $("#unitForm").hidden=false; $("#u_code").focus();
 }
 $("#addBtn").addEventListener("click", ()=>openForm());
@@ -327,13 +362,13 @@ $("#unitForm").addEventListener("submit", async e => {
   const row = {}; F.forEach(k => row[k] = $("#u_"+k).value.trim());
   if ($("#phBusy").hidden === false) return toast("Đợi ảnh tải lên xong rồi bấm Lưu");
   row.photos = PHOTOS; row.hot = $("#u_hot").checked;
-  row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null;
+  row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null; row.tier=row.tier||null;
   const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
   if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; }
   else {
     const q = editing ? sb.from("units").update(row).eq("id", editing.id).select("id").single() : sb.from("units").insert(row).select("id").single();
     const { data, error } = await q;
-    if (error) return toast(error.code==="23505" ? "Mã căn này đã có trong giỏ hàng" : "Không lưu được: "+error.message);
+    if (error) return toast(error.code==="23505" ? "Mã căn này đã có trong giỏ hàng (cùng loại thuê/bán)" : "Không lưu được: "+error.message);
     const { error: e2 } = await sb.from("unit_private").upsert({ unit_id: data.id, ...priv, updated_at: new Date().toISOString() });
     if (e2) toast("Đã lưu căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message);
     UNITS = await loadUnits(); await loadPriv();
@@ -391,7 +426,7 @@ $("#bulkSave").addEventListener("click", async ()=>{
   $("#bulkSave").disabled = true;
   if (me.demo) { bulkRows.forEach(({row,priv}) => { const old = UNITS.find(u=>u.code===row.code); const id = old?.id || "demo"+Math.random(); old ? Object.assign(old,row) : UNITS.push({...row,id}); PRIV[id]=priv; }); }
   else {
-    const { data, error } = await sb.from("units").upsert(bulkRows.map(b=>b.row), { onConflict:"code" }).select("id,code");
+    const { data, error } = await sb.from("units").upsert(bulkRows.map(b=>b.row), { onConflict:"code,deal" }).select("id,code");
     if (error) { $("#bulkSave").disabled=false; return toast("Không nhập được: "+error.message); }
     const idOf = Object.fromEntries(data.map(r=>[r.code,r.id]));
     const privRows = bulkRows.filter(b=>b.priv.holder||b.priv.owner_name||b.priv.owner_phone).map(b=>({ unit_id:idOf[b.row.code], ...b.priv, updated_at:new Date().toISOString() }));
@@ -432,6 +467,45 @@ $("#people").addEventListener("change", async e => {
   p[f] = val; renderPeople(); toast(`Đã cập nhật ${p.full_name || p.email}`);
 });
 if (isAdmin) loadPeople();
+
+/* ---------- Khách & chủ nhà cần khai thác ---------- */
+const LWHO = { chu:"Chủ nhà", khach:"Khách", sales:"Sales" };
+const LST = { moi:"Mới", da_nhan:"Đã nhắn", dang_cham:"Đang chăm", co_nhu_cau:"Có nhu cầu", khong_nhu_cau:"Không có nhu cầu" };
+const canLeads = isAdmin || ["nguon","zalo","facebook","cskh"].includes(me.dept);
+$("#tabLeads").hidden = !canLeads;
+Object.entries(LST).forEach(([k,l]) => $("#lStatus").insertAdjacentHTML("beforeend", opt(k,l)));
+let LEADS = [];
+async function loadLeads(){
+  if (me.demo) LEADS = [{id:"l1",phone:"0901 111 222",name:"Chị Hoa",who:"chu",source:"Nhóm MTGroup TTM",need:"Cho thuê 2PN S1.02",note:null,status:"co_nhu_cau",contacted_at:new Date().toISOString()}];
+  else { const { data, error } = await sb.from("leads").select("*").order("created_at",{ascending:false}).limit(500); if (error) return toast("Chưa tải được danh sách: "+error.message); LEADS = data; }
+  renderLeads();
+}
+function renderLeads(){
+  const q=$("#lq").value.trim().toLowerCase(), w=$("#lWho").value, s=$("#lStatus").value;
+  $("#leads").innerHTML = LEADS.filter(l=>(!q||(l.phone+" "+(l.name||"")).toLowerCase().includes(q))&&(!w||l.who===w)&&(!s||l.status===s)).map(l=>`<tr data-id="${esc(l.id)}">
+    <td><b>${esc(l.phone)}</b><div class="muted" style="font-size:12px">${esc(l.name||"")}</div></td>
+    <td>${esc(LWHO[l.who]||l.who)}</td><td class="muted">${esc(l.source||"-")}</td>
+    <td>${esc(l.need||"-")}${l.note?`<div class="muted" style="font-size:12px">${esc(l.note)}</div>`:""}</td>
+    <td><select data-lst>${Object.entries(LST).map(([k,v])=>opt(k,v,l.status)).join("")}</select></td>
+    <td class="muted">${l.contacted_at?new Date(l.contacted_at).toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"-"}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="empty">Chưa có số nào. Thêm số đầu tiên ở form phía trên.</td></tr>`;
+}
+["#lq","#lWho","#lStatus"].forEach(s=>$(s).addEventListener("input",renderLeads));
+$("#leads").addEventListener("change", async e => {
+  if (!e.target.hasAttribute("data-lst")) return;
+  const id = e.target.closest("tr").dataset.id, l = LEADS.find(x=>String(x.id)===id), status = e.target.value;
+  if (!me.demo) { const { error } = await sb.from("leads").update({ status }).eq("id", id); if (error) { e.target.value = l.status; return toast("Không lưu được: "+error.message); } }
+  l.status = status; toast("Đã cập nhật "+l.phone);
+});
+$("#leadForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const row = { phone: $("#l_phone").value.replace(/[^\d+]/g,""), name: $("#l_name").value.trim()||null, who: $("#l_who").value, source: $("#l_source").value.trim()||null, note: $("#l_note").value.trim()||null };
+  if (row.phone.length < 9) return toast("SĐT chưa đúng");
+  if (me.demo) LEADS.unshift({ ...row, id:"l"+Date.now(), status:"moi" });
+  else { const { error } = await sb.from("leads").insert(row); if (error) return toast(error.code==="23505" ? "Số này đã có trong danh sách" : "Không lưu được: "+error.message); await loadLeads(); }
+  e.target.reset(); renderLeads(); toast("Đã thêm "+row.phone);
+});
+if (canLeads) loadLeads();
 
 /* ---------- Phòng của tôi ---------- */
 const d = deptOf(me.dept);

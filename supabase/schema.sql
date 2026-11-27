@@ -146,3 +146,69 @@ do $$ begin
     alter publication supabase_realtime add table public.units;
   end if;
 end $$;
+
+-- 9. Việc Zalo hằng ngày (thêm ngày 2026-11-27)
+--    Căn cho thuê và căn bán dùng chung bảng units. Với căn cho thuê, cột price tính bằng TRIỆU/THÁNG; căn bán vẫn tính bằng TỶ.
+alter table public.units add column if not exists deal text not null default 'ban' check (deal in ('ban','thue'));
+alter table public.units add column if not exists tier text check (tier in ('tot','thitruong','cao'));   -- giá tốt / giá thị trường / giá cao
+alter table public.units add column if not exists source text;                                         -- nhóm Zalo lấy tin
+alter table public.units add column if not exists posted_at timestamptz not null default now();        -- ngày đăng tin
+alter table public.units add column if not exists checked_at timestamptz;                              -- lần gần nhất hỏi người đăng còn/hết
+-- Một mã căn có thể vừa cho thuê vừa bán
+alter table public.units drop constraint if exists units_code_key;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'units_code_deal_key') then
+    alter table public.units add constraint units_code_deal_key unique (code, deal);
+  end if;
+end $$;
+-- Người đăng tin trong nhóm Zalo (nội bộ)
+alter table public.unit_private add column if not exists poster_name text;
+alter table public.unit_private add column if not exists poster_phone text;
+
+-- Xếp mức giá: mỗi phân khu + loại căn + thuê/bán, 3 căn rẻ nhất theo giá/m² là "giá tốt" (hiện ở văn phòng 3D).
+-- Căn còn lại: không quá 10% trên mức giữa là "giá thị trường", cao hơn là "giá cao". Căn đã bán không tính.
+create or replace function public.recompute_tiers() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  with g as (
+    select zone, type, deal, percentile_cont(0.5) within group (order by price / area) as med
+    from units where status <> 'sold' and area > 0 group by zone, type, deal
+  ), r as (
+    select u.id, u.price / u.area as ppm, g.med,
+           row_number() over (partition by u.zone, u.type, u.deal order by u.price / u.area, u.posted_at) as rn
+    from units u join g using (zone, type, deal)
+    where u.status <> 'sold' and u.area > 0
+  )
+  update units u set
+    tier = case when r.rn <= 3 then 'tot' when r.ppm <= r.med * 1.1 then 'thitruong' else 'cao' end,
+    hot  = (r.rn <= 3)
+  from r where u.id = r.id;
+  update units set hot = false where status = 'sold' and hot;
+end $$;
+grant execute on function public.recompute_tiers() to authenticated;
+
+-- 10. Khách & chủ nhà cần khai thác (SĐT từ nhóm Zalo, từ phòng Facebook gửi về...)
+create or replace function public.can_work_leads() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and status = 'approved'
+                and (role = 'admin' or (kind = 'nhanvien' and dept in ('nguon','zalo','facebook','cskh'))))
+$$;
+grant execute on function public.can_work_leads() to authenticated;
+create table if not exists public.leads (
+  id uuid primary key default gen_random_uuid(),
+  phone text not null unique,
+  name text,
+  who text not null default 'chu' check (who in ('chu','khach','sales')),   -- chủ nhà / khách / sales
+  source text,                       -- VD: Nhóm MTGroup TTM, Facebook
+  need text,                         -- nhu cầu: cho thuê, bán, mua, thuê...
+  note text,
+  status text not null default 'moi' check (status in ('moi','da_nhan','dang_cham','co_nhu_cau','khong_nhu_cau')),
+  contacted_at timestamptz,
+  created_at timestamptz not null default now(),
+  created_by uuid references auth.users(id) default auth.uid()
+);
+alter table public.leads enable row level security;
+drop policy if exists "leads_all" on public.leads;
+create policy "leads_all" on public.leads for all using (public.can_work_leads()) with check (public.can_work_leads());
+grant select, insert, update, delete on public.leads to authenticated;
