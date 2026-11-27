@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Văn phòng 3D Grand Park</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Lexend:wght@500;600;700&display=swap">
@@ -128,6 +128,9 @@ label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spac
   header{gap:8px;padding-block:10px}
   .brand{font-size:15px}
 }
+/* Điện thoại: không tự phóng to khi bấm vào ô chọn, không phóng to khi chạm 2 lần */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
+@media (max-width:860px){select,input{font-size:16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
