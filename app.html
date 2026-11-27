@@ -215,7 +215,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127f";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode } from "./data.js?v=20261127g";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -230,7 +230,7 @@ sb?.auth.onAuthStateChange(async ev => {
 });
 
 const me = await requireApproved();
-if (!["nhanvien","sales"].includes(me.kind) && me.role !== "admin") location.replace("index.html");
+if (!["nhanvien","sales","ctv"].includes(me.kind) && me.role !== "admin") location.replace("index.html");
 const isAdmin = me.role === "admin";
 if (!me.demo) setShareRef(me.id);
 // Sales/CTV gửi căn: bài đăng ghi SĐT của chính sales đó (không ghi Admin) để giữ khách cho sales.
@@ -239,7 +239,15 @@ const digits=v=>String(v||"").replace(/[^0-9]/g,"");
 const IS_SELLER = me.role!=="admin" && ["sales","ctv","nhanvien"].includes(me.kind);
 const SHARE_CONTACT = IS_SELLER ? { phone: digits(me.phone), facebook: CONTACT.facebook, label: "" } : { ...CONTACT, label: "Admin" };
 const VIEW_CONTACT = (me.kind==="khach" && digits(me.sales_phone)) ? { phone: digits(me.sales_phone), facebook: CONTACT.facebook, label: "Sales" + (me.sales_ref ? " " + me.sales_ref : "") } : { ...CONTACT, label: "Admin" };
-const canEdit = isAdmin || ["nhanvien","sales"].includes(me.kind);   // Sales và nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn. CTV không vào trang này.
+const canEdit = isAdmin || ["nhanvien","sales","ctv"].includes(me.kind);   // Sales, CTV, nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn
+// CTV không được biết mã căn: đọc giỏ hàng qua hàm units_for_ctv (mã ẩn), ghi qua ctv_save_unit
+const HIDE = me.kind==="ctv" && !isAdmin && !me.demo; setHideCode(HIDE);
+async function ctvSave(id,p){ const { data, error } = await sb.rpc("ctv_save_unit",{ p_id:id, p }); return { data, error }; }
+async function unitPatch(id,patch){ if(HIDE) return ctvSave(id,patch); return sb.from("units").update(patch).eq("id",id); }
+async function unitSave(id,row){ if(HIDE){ const r=await ctvSave(id,row); return { data:r.data?{id:r.data}:null, error:r.error }; }
+  return id ? sb.from("units").update(row).eq("id",id).select("id").single() : sb.from("units").insert(row).select("id").single(); }
+async function unitsUpsert(rows){ if(HIDE){ const out=[]; for(const r of rows){ const x=await ctvSave(null,r); if(x.error) return { error:x.error }; out.push({ id:x.data, code:r.code }); } return { data:out }; }
+  return sb.from("units").upsert(rows,{ onConflict:"code,deal" }).select("id,code"); }
 $("#demoNote").hidden = !me.demo;
 $("#who").innerHTML = `<b>${esc(me.full_name || me.email)}</b> · ${isAdmin ? "Quản trị" : esc(deptOf(me.dept)?.name || "Nhân viên")}`;
 $("#logout").addEventListener("click", signOut);
@@ -253,7 +261,7 @@ function showTab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
 
 /* ---------- Giỏ hàng ---------- */
-let UNITS = me.demo ? sampleUnits().map((u,i)=>({...u,id:"demo"+i})) : (await loadUnits()) || [];
+let UNITS = me.demo ? sampleUnits().map((u,i)=>({...u,id:"demo"+i})) : (await loadUnits(HIDE)) || [];
 // Thông tin nội bộ (người nắm hàng, chủ nhà): chỉ tải khi có quyền.
 const PRIV = {}; const PF = ["holder","owner_name","owner_phone","note","poster_name","poster_phone"];
 async function loadPriv(){ if (!isAdmin || me.demo) return; const { data } = await sb.from("unit_private").select("*"); (data||[]).forEach(r=>PRIV[r.unit_id]=r); }
@@ -277,7 +285,7 @@ function renderUnits(){
     $("#seed")?.addEventListener("click", seed); return;
   }
   $("#units").innerHTML = rows.map(u=>`<tr data-id="${esc(u.id)}">
-    <td>${u.photos?.length?`<img class="thumb" src="${esc(u.photos[0])}" alt="" loading="lazy">`:""}<b>${esc(u.code)}</b>${u.deal==="thue"?` <span class="st hold">Cho thuê</span>`:""}${isAdmin && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
+    <td>${u.photos?.length?`<img class="thumb" src="${esc(u.photos[0])}" alt="" loading="lazy">`:""}<b>${esc(shownCode(u))}</b>${u.deal==="thue"?` <span class="st hold">Cho thuê</span>`:""}${isAdmin && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
     <td>${esc(zoneOf(u.zone).name)} <span class="muted">· ${esc(u.tower)}</span></td>
     <td>${esc(u.type)}</td><td class="num" data-u="m²">${u.area}</td><td class="num" data-u="">Tầng ${u.floor ?? "-"}</td>
     <td>${esc(u.dir||"-")} <span class="muted">· ${esc(u.view||"-")}</span></td>
@@ -302,16 +310,16 @@ async function seed(){
 $("#units").addEventListener("change", async e => {
   if (!e.target.matches("[data-status]")) return;
   const id = e.target.closest("tr").dataset.id, status = e.target.value, u = UNITS.find(x=>String(x.id)===id);
-  if (!me.demo) { const { error } = await sb.from("units").update({ status }).eq("id", id); if (error) { e.target.value=u.status; return toast("Không lưu được: "+error.message); } }
-  u.status = status; toast(`${u.code}: ${ST[status]}`);
+  if (!me.demo) { const { error } = await unitPatch(id, { status }); if (error) { e.target.value=u.status; return toast("Không lưu được: "+error.message); } }
+  u.status = status; toast(`${shownCode(u)}: ${ST[status]}`);
 });
 $("#units").addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b || b.id==="seed") return;
   const id = b.closest("tr").dataset.id, u = UNITS.find(x=>String(x.id)===id);
   if (b.hasAttribute("data-hot")) {
     const hot = !u.hot;
-    if (!me.demo) { const { error } = await sb.from("units").update({ hot }).eq("id", id); if (error) return toast("Không lưu được: "+error.message); }
-    u.hot = hot; renderUnits(); toast(hot ? `${u.code}: đã đưa lên văn phòng 3D` : `${u.code}: đã gỡ khỏi văn phòng 3D`);
+    if (!me.demo) { const { error } = await unitPatch(id, { hot }); if (error) return toast("Không lưu được: "+error.message); }
+    u.hot = hot; renderUnits(); toast(hot ? `${shownCode(u)}: đã đưa lên văn phòng 3D` : `${shownCode(u)}: đã gỡ khỏi văn phòng 3D`);
   }
   else if (b.hasAttribute("data-view")) openView(u);
   else if (b.dataset.share) shareUnit(u, SHARE_CONTACT, b.dataset.share, toast);
@@ -327,7 +335,8 @@ $("#units").addEventListener("click", async e => {
 let editing = null;
 const F = ["code","deal","zone","tower","type","area","floor","dir","view","price","tier","status","furnish","note"];
 function openForm(u){
-  editing = u || null; $("#formTitle").textContent = u ? `Sửa căn ${u.code}` : "Thêm căn";
+  editing = u || null; $("#formTitle").textContent = u ? `Sửa căn ${shownCode(u)}` : "Thêm căn";
+  { const lab=$("#u_code").closest("label")||$("#u_code").parentElement; lab.hidden = !!(HIDE && u); $("#u_code").required = !(HIDE && u); }
   F.forEach(k => { if (k!=="tower") $("#u_"+k).value = u ? (u[k] ?? "") : (k==="status"?"ok":k==="zone"?ZONES[0].id:""); });
   if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value="Bàn giao cơ bản"; }
   PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
@@ -395,7 +404,8 @@ $("#unitForm").addEventListener("submit", async e => {
   const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
   if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; }
   else {
-    const q = editing ? sb.from("units").update(row).eq("id", editing.id).select("id").single() : sb.from("units").insert(row).select("id").single();
+    if (HIDE && editing) delete row.code;
+    const q = unitSave(editing?.id || null, row);
     const { data, error } = await q;
     if (error) return toast(error.code==="23505" ? "Mã căn này đã có trong giỏ hàng (cùng loại thuê/bán)" : "Không lưu được: "+error.message);
     const hasPriv = Object.values(priv).some(Boolean);
@@ -403,9 +413,9 @@ $("#unitForm").addEventListener("submit", async e => {
       const { error: e2 } = await sb.from("unit_private").upsert({ unit_id: data.id, ...priv, updated_at: new Date().toISOString() }, isAdmin ? {} : { ignoreDuplicates:true });
       if (e2) toast("Đã lưu căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message);
     }
-    UNITS = await loadUnits(); await loadPriv();
+    UNITS = await loadUnits(HIDE); await loadPriv();
   }
-  $("#unitForm").hidden=true; renderUnits(); toast("Đã lưu "+row.code);
+  $("#unitForm").hidden=true; renderUnits(); toast("Đã lưu "+(row.code&&!HIDE ? row.code : editing ? shownCode(editing) : "căn mới"));
 });
 renderUnits();
 initMenus();
@@ -413,10 +423,10 @@ initMenus();
 let VIEWING=null;
 function openView(u){
   VIEWING=u; const ph=u.photos||[], pv=PRIV[u.id]||{};
-  $("#vwTitle").textContent=`${u.code}${u.deal==="thue"?" · Cho thuê":""}`;
+  $("#vwTitle").textContent=`${shownCode(u)}${u.deal==="thue"?" · Cho thuê":""}`;
   const row=(k,v)=>v||v===0?`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`:"";
   $("#vwBody").innerHTML=`
-    ${ph.length?`<img class="vw-main" id="vwMain" src="${esc(ph[0])}" alt="Ảnh căn ${esc(u.code)}">${ph.length>1?`<div class="vw-thumbs">${ph.map((x,i)=>`<img src="${esc(x)}" data-i="${i}" class="${i?"":"on"}" alt="">`).join("")}</div>`:""}`:`<div class="muted">Căn này chưa có ảnh.${canEdit?" Bấm Sửa để thêm ảnh.":""}</div>`}
+    ${ph.length?`<img class="vw-main" id="vwMain" src="${esc(ph[0])}" alt="Ảnh căn ${esc(shownCode(u))}">${ph.length>1?`<div class="vw-thumbs">${ph.map((x,i)=>`<img src="${esc(x)}" data-i="${i}" class="${i?"":"on"}" alt="">`).join("")}</div>`:""}`:`<div class="muted">Căn này chưa có ảnh.${canEdit?" Bấm Sửa để thêm ảnh.":""}</div>`}
     <dl class="vw-grid">
       ${row("Giá",fmtPrice(u.price,u.deal))}${row("Mức giá",TIERS[u.tier])}${row("Trạng thái",ST[u.status])}
       ${row("Phân khu",zoneOf(u.zone).name)}${row("Toà",u.tower)}${row("Loại căn",u.type)}
@@ -449,9 +459,10 @@ $("#units").addEventListener("click", e => {
 
 /* Đồng bộ: người khác thêm/sửa/xoá căn thì bảng tự cập nhật */
 if (sb && !me.demo) {
-  let t; const reload = async () => { const d = await loadUnits(); if (!d) return; UNITS = d; await loadPriv(); renderUnits(); };
+  let t; const reload = async () => { const d = await loadUnits(HIDE); if (!d) return; UNITS = d; await loadPriv(); renderUnits(); };
   sb.channel("units-admin").on("postgres_changes", { event: "*", schema: "public", table: "units" }, () => { clearTimeout(t); t = setTimeout(reload, 400); }).subscribe();
   document.addEventListener("visibilitychange", () => { if (!document.hidden) reload(); });
+  if (HIDE) setInterval(() => { if (!document.hidden && $("#unitForm").hidden) reload(); }, 60000); // CTV không nhận realtime từ bảng căn
 }
 
 /* ---------- Nhập nhiều căn từ Excel ---------- */
@@ -496,12 +507,12 @@ $("#bulkSave").addEventListener("click", async ()=>{
   $("#bulkSave").disabled = true;
   if (me.demo) { bulkRows.forEach(({row,priv}) => { const old = UNITS.find(u=>u.code===row.code); const id = old?.id || "demo"+Math.random(); old ? Object.assign(old,row) : UNITS.push({...row,id}); PRIV[id]=priv; }); }
   else {
-    const { data, error } = await sb.from("units").upsert(bulkRows.map(b=>b.row), { onConflict:"code,deal" }).select("id,code");
+    const { data, error } = await unitsUpsert(bulkRows.map(b=>b.row));
     if (error) { $("#bulkSave").disabled=false; return toast("Không nhập được: "+error.message); }
     const idOf = Object.fromEntries(data.map(r=>[r.code,r.id]));
     const privRows = bulkRows.filter(b=>b.priv.holder||b.priv.owner_name||b.priv.owner_phone).map(b=>({ unit_id:idOf[b.row.code], ...b.priv, updated_at:new Date().toISOString() }));
     if (privRows.length) { const { error:e2 } = await sb.from("unit_private").upsert(privRows, isAdmin ? {} : { ignoreDuplicates:true }); if (e2) toast("Đã nhập căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message); }
-    UNITS = await loadUnits(); await loadPriv();
+    UNITS = await loadUnits(HIDE); await loadPriv();
   }
   toast(`Đã nhập ${bulkRows.length} căn`); $("#bulk").hidden=true; $("#bulkText").value=""; $("#bulkResult").innerHTML=""; renderUnits();
 });
@@ -523,7 +534,7 @@ window.addEventListener("message", async ev => {
     const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type, cacheControl: "31536000" });
     if (!error) urls.push(sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
   }
-  const { error } = await sb.from("units").update({ photos: urls }).eq("id", u.id);
+  const { error } = await unitPatch(u.id, { photos: urls });
   if (!error) { u.photos = urls; renderUnits(); }
   reply({ ok: !error, count: urls.length, error: error?.message });
 });

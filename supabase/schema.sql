@@ -368,3 +368,36 @@ begin
           'approved', sref, sphone);
   return new;
 end $$;
+
+-- 16. (2026-11-27) CTV vẫn nhập, sửa, gửi hàng như Sales nhưng KHÔNG thấy mã căn.
+--     CTV không đọc thẳng bảng units, nên ghi qua hàm ctv_save_unit (không cho đổi mã căn khi sửa).
+create or replace function public.can_edit_units() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and status = 'approved'
+                and (role = 'admin' or kind in ('sales','ctv','nhanvien')))
+$$;
+
+create or replace function public.ctv_save_unit(p_id uuid, p jsonb) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  rid uuid := p_id;
+  cols text;
+  q jsonb := p - 'id' - 'updated_by' - 'updated_at' - 'created_at';
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  -- thêm mới: nếu mã căn + thuê/bán đã có thì cập nhật căn đó
+  if rid is null and q ? 'code' then
+    select id into rid from units where code = q->>'code' and deal = coalesce(q->>'deal', 'ban');
+  end if;
+  if rid is not null then q := q - 'code' - 'deal'; end if;
+  select string_agg(quote_ident(k), ',') into cols from jsonb_object_keys(q) k
+    where k in (select column_name from information_schema.columns where table_schema = 'public' and table_name = 'units');
+  if rid is null then
+    if cols is null then raise exception 'Thiếu thông tin căn'; end if;
+    execute format('insert into units (%s) select %s from jsonb_populate_record(null::units, $1) returning id', cols, cols) using q into rid;
+  elsif cols is not null then
+    execute format('update units set (%s) = (select %s from jsonb_populate_record(null::units, $1)) where id = $2', cols, cols) using q, rid;
+  end if;
+  return rid;
+end $$;
+grant execute on function public.ctv_save_unit(uuid, jsonb) to authenticated;

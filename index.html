@@ -198,7 +198,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink } from "./data.js?v=20261127f";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink } from "./data.js?v=20261127g";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -224,7 +224,7 @@ $("#sampleNote").hidden=!IS_SAMPLE;
   if(me.kind==="chunha"){rn.innerHTML=`Bạn cần gửi căn để bán hoặc cho thuê? Liên hệ Admin: <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">Zalo ${CONTACT.phone}</a> hoặc <a href="tel:${CONTACT.phone}" style="color:var(--brass)">gọi ${CONTACT.phone}</a>, kèm mã căn, giá và ảnh.`;rn.hidden=false}
   else if(me.kind==="khach"&&me.sales_ref){rn.textContent=`Sales đang làm việc với bạn: ${me.sales_ref}`;rn.hidden=false} }
 if(matchMedia("(max-width:860px)").matches)$("#hint").textContent="Kéo để xoay · chụm để phóng to";
-$("#manage").hidden=!(["nhanvien","sales"].includes(me.kind)||me.role==="admin");
+$("#manage").hidden=!(["nhanvien","sales","ctv"].includes(me.kind)||me.role==="admin");
 $("#logout").addEventListener("click",signOut);
 const state={zone:"",type:"",status:"",sort:"price",tower:"",active:""};
 ZONES.forEach(z=>$("#fZone").insertAdjacentHTML("beforeend",`<option value="${z.id}">${z.name}</option>`));
@@ -746,11 +746,11 @@ DEPTS.forEach(d=>{
     desk(dx,zp,face*Math.PI/2,.6);
     { const seat={x:dx+face*.6,z:zp,rot:-face*Math.PI/2},xin=x+face*(w/2-.55),zDoor=z+(zp>=z?1:-1)*(dz/2-.45),xout=x+face*(w/2+.7);
       const h=makeHuman(d.color,{long:hr()<.45});scene.add(h);
+      { const tag=label(`${r.t} · ${d.name}`,hex(d.color),true);tag.position.y=2.0;tag.scale.multiplyScalar(.7);h.add(tag); } // tên vị trí + phòng ban đi theo người
       const working=hr()<.65,agent={h,mode:working?"sit":"stand",timer:working?5+hr()*40:hr()*4,seat,speed:.8+hr()*.35,route:[],exit:[[xin,zp],[xin,zDoor],[xout,zDoor]]};
       if(working){h.position.set(seat.x,0,seat.z);h.rotation.y=seat.rot}
       else{const p=pick(WALK_PTS);h.position.set(p[0],0,p[1]);agent.mode="walk";agent.route=[...routeTo(p,agent.exit[2]),agent.exit[1],agent.exit[0],[seat.x,seat.z]]}
       AGENTS.push(agent); }
-    const lb=label(r.t,hex(d.color),true);lb.position.set(dx,2.05,zp);lb.scale.multiplyScalar(.7);scene.add(lb);
   });
   if(d.id==="video"){
     box(3,2.6,.05,M(0x3d8a5a,{roughness:.9}),x+1,1.4,-9.82);
