@@ -224,3 +224,39 @@ create policy "unit_private_insert" on public.unit_private for insert with check
 create policy "unit_private_admin_select" on public.unit_private for select using (public.is_admin());
 create policy "unit_private_admin_update" on public.unit_private for update using (public.is_admin()) with check (public.is_admin());
 create policy "unit_private_admin_delete" on public.unit_private for delete using (public.is_admin());
+
+-- 12. (2026-11-27) Đăng ký hỏi "Bạn là ai": Khách hàng / Chủ nhà / Sales - CTV. Ai đăng ký cũng vào ngay.
+--     Sales - CTV (và nhân viên) được nhập, sửa, gửi hàng. Chỉ quản trị xoá căn và xem người đăng.
+alter table public.profiles add column if not exists sales_ref text;   -- khách ghi sales đang làm việc với mình
+do $$ declare c text; begin
+  for c in select conname from pg_constraint where conrelid = 'public.profiles'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%kind%' loop
+    execute format('alter table public.profiles drop constraint %I', c);
+  end loop;
+end $$;
+alter table public.profiles add constraint profiles_kind_check check (kind in ('khach','chunha','ctv','nhanvien'));
+
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  first_user boolean;
+  k text := coalesce(new.raw_user_meta_data->>'kind', 'khach');
+begin
+  select not exists(select 1 from profiles) into first_user;
+  if k = 'nhanvien' then k := 'ctv'; end if;              -- nhân viên do quản trị tự đổi trong trang Quản lý
+  if k not in ('khach','chunha','ctv') then k := 'khach'; end if;
+  insert into profiles(id, email, full_name, phone, kind, dept, role, status, sales_ref)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone',
+          case when first_user then 'nhanvien' else k end, null,
+          case when first_user then 'admin' else 'member' end,
+          'approved',
+          nullif(left(trim(coalesce(new.raw_user_meta_data->>'sales_ref','')),120),''));
+  return new;
+end $$;
+
+create or replace function public.can_edit_units() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and status = 'approved'
+                and (role = 'admin' or kind in ('ctv','nhanvien')))
+$$;
+drop policy if exists "units_delete" on public.units;
+create policy "units_delete" on public.units for delete using (public.is_admin());

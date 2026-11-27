@@ -21,6 +21,8 @@
 .tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--brass)}
 form{display:grid;gap:12px}
 .kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ownerbox{border:1px solid rgba(214,167,92,.45);background:rgba(214,167,92,.08);border-radius:10px;padding:10px 12px;font-size:13.5px;display:grid;gap:8px}
+.ownerbox .acts{display:flex;gap:8px;flex-wrap:wrap}
 .kinds label{border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:13px;cursor:pointer}
 .kinds input{position:absolute;opacity:0;width:1px;height:1px}
 .kinds label:has(input:checked){border-color:var(--brass);background:rgba(214,167,92,.12);font-weight:600}
@@ -58,6 +60,16 @@ form{display:grid;gap:12px}
       </form>
 
       <form id="fUp" hidden>
+        <div class="f">Bạn là ai?
+          <div class="kinds">
+            <label><input type="radio" name="kind" value="khach" checked>Khách hàng</label>
+            <label><input type="radio" name="kind" value="chunha">Chủ nhà</label>
+            <label><input type="radio" name="kind" value="ctv">Sales / CTV</label>
+          </div>
+        </div>
+        <label class="f" id="salesWrap">Sales đang làm việc với bạn (tên hoặc SĐT, nếu có)<input id="upSales" autocomplete="off" maxlength="120"></label>
+        <div class="ownerbox" id="ownerBox" hidden><div>Bạn cần gửi căn để bán hoặc cho thuê? Liên hệ Admin qua Zalo hoặc số điện thoại <b id="ownPhone"></b>, kèm mã căn, giá và ảnh.</div>
+          <div class="acts"><a class="btn sm" id="ownZalo" target="_blank" rel="noopener">💬 Nhắn Zalo Admin</a><a class="btn sm" id="ownTel">📞 Gọi Admin</a></div></div>
         <label class="f">Họ và tên<input id="upName" autocomplete="name" required></label>
         <div class="row2">
           <label class="f">Số điện thoại<input id="upPhone" type="tel" autocomplete="tel" pattern="[0-9 +.]{9,15}" required></label>
@@ -74,12 +86,16 @@ form{display:grid;gap:12px}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
 import { sb, configured, currentProfile, markLoginToday } from "./supa.js";
+import { CONTACT } from "./config.js";
 const $ = s => document.querySelector(s);
 const appUrl = new URL("app.html", location.href).href;
 function say(text, type="err"){ const m=$("#msg"); m.textContent=text; m.className="msg "+type; m.hidden=false; }
 function tab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $("#fIn").hidden=t!=="in"; $("#fUp").hidden=t!=="up"; $("#msg").hidden=true; }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
 
+$("#ownPhone").textContent=CONTACT.phone; $("#ownZalo").href="https://zalo.me/"+CONTACT.phone; $("#ownTel").href="tel:"+CONTACT.phone;
+const kindNow=()=>document.querySelector("[name=kind]:checked").value;
+document.querySelectorAll("[name=kind]").forEach(r=>r.addEventListener("change",()=>{ $("#salesWrap").hidden=kindNow()!=="khach"; $("#ownerBox").hidden=kindNow()!=="chunha"; }));
 if(!configured) say("Web chưa nối máy chủ đăng nhập. Đang ở chế độ xem thử, bấm Đăng nhập để vào xem.","warn");
 
 const VN = {
@@ -121,9 +137,10 @@ $("#fUp").addEventListener("submit", async e=>{
   e.preventDefault();
   if(!configured) return say("Chế độ xem thử chưa đăng ký được. Khi web nối máy chủ thì đăng ký sẽ hoạt động.","warn");
   const f=e.currentTarget; if(f.dataset.busy) return; f.dataset.busy=1; busy(f,true);
+  const kind=kindNow();
   const { data, error } = await sb.auth.signUp({
     email:$("#upEmail").value.trim(), password:$("#upPass").value,
-    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim() } }
+    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim(), kind, sales_ref: kind==="khach"?$("#upSales").value.trim():null } }
   });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));

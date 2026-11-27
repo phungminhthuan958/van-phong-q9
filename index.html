@@ -177,6 +177,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
     <div id="cartPane" class="pane" hidden>
     <div class="cart-head">
       <h2>Căn giá tốt <b id="count"></b></h2>
+      <div class="sample" id="roleNote" hidden></div>
       <div class="sample" id="sampleNote">Dữ liệu mẫu để xem giao diện. Giá, mã căn và trạng thái chưa phải hàng thật.</div>
       <div class="filters">
         <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
@@ -197,7 +198,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus } from "./data.js?v=20261127b";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus } from "./data.js?v=20261127c";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -208,8 +209,11 @@ let UNITS = (IS_SAMPLE ? sampleUnits().map((u,i)=>({...u,hot:i%3===0})) : (await
 /* ====== Giỏ hàng UI ====== */
 const $=s=>document.querySelector(s);
 $("#sampleNote").hidden=!IS_SAMPLE;
+{ const rn=$("#roleNote");
+  if(me.kind==="chunha"){rn.innerHTML=`Bạn cần gửi căn để bán hoặc cho thuê? Liên hệ Admin: <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">Zalo ${CONTACT.phone}</a> hoặc <a href="tel:${CONTACT.phone}" style="color:var(--brass)">gọi ${CONTACT.phone}</a>, kèm mã căn, giá và ảnh.`;rn.hidden=false}
+  else if(me.kind==="khach"&&me.sales_ref){rn.textContent=`Sales đang làm việc với bạn: ${me.sales_ref}`;rn.hidden=false} }
 if(matchMedia("(max-width:860px)").matches)$("#hint").textContent="Kéo để xoay · chụm để phóng to";
-$("#manage").hidden=!(me.kind==="nhanvien"||me.role==="admin");
+$("#manage").hidden=!(["nhanvien","ctv"].includes(me.kind)||me.role==="admin");
 $("#logout").addEventListener("click",signOut);
 const state={zone:"",type:"",status:"",sort:"price",tower:"",active:""};
 ZONES.forEach(z=>$("#fZone").insertAdjacentHTML("beforeend",`<option value="${z.id}">${z.name}</option>`));
@@ -529,7 +533,7 @@ const logoG=new THREE.Group();scene.add(logoG);
    Dùng Realtime Presence (không lưu gì vào cơ sở dữ liệu). Gói tin chỉ có id + loại tài khoản, KHÔNG có tên/SĐT/email.
    Quản trị thấy tên (tự tra trong profiles), người khác chỉ thấy tên của chính mình. */
 const guestG=new THREE.Group();scene.add(guestG);
-const KIND={khach:{t:"Khách",c:0x4aa3df,css:"#8fd0ff"},ctv:{t:"CTV",c:0x4cbf86,css:"#9be8bf"},nhanvien:{t:"Nhân viên",c:0xd6a75c,css:"#f0cf98"}};
+const KIND={khach:{t:"Khách",c:0x4aa3df,css:"#8fd0ff"},chunha:{t:"Chủ nhà",c:0xc77dd8,css:"#e6b8f0"},ctv:{t:"Sales",c:0x4cbf86,css:"#9be8bf"},nhanvien:{t:"Nhân viên",c:0xd6a75c,css:"#f0cf98"}};
 const givenName=p=>((p?.full_name||"").trim().split(/\s+/).pop()||"");
 let NAMES={};
 function drawGuests(list){

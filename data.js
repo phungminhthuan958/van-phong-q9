@@ -25,7 +25,7 @@ export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59
 export const DIRS = ["Đông Nam","Tây Bắc","Đông Bắc","Tây Nam","Nam","Bắc","Đông","Tây"];
 export const VIEWS = ["Nội khu","Công viên 36ha","Hồ bơi","Thành phố","Sông"];
 export const ST = { ok:"Còn hàng", hold:"Đang giữ chỗ", sold:"Đã bán" };
-export const KINDS = { khach:"Khách hàng", ctv:"Cộng tác viên", nhanvien:"Nhân viên" };
+export const KINDS = { khach:"Khách hàng", chunha:"Chủ nhà", ctv:"Sales / CTV", nhanvien:"Nhân viên" };
 export const ROLES = { member:"Thành viên", lead:"Trưởng phòng", admin:"Quản trị" };
 export const STATUSES = { pending:"Chờ duyệt", approved:"Đã duyệt", blocked:"Đã chặn" };
 
