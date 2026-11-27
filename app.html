@@ -171,8 +171,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
         <label class="f">Mức giá<select id="u_tier"><option value="">Tự xếp</option><option value="tot">Giá tốt</option><option value="thitruong">Giá thị trường</option><option value="cao">Giá cao</option></select></label>
         <label class="f wide">Ghi chú (khách cũng thấy)<input id="u_note"></label>
       </div>
-      <label class="f" style="margin:10px 0 2px">🔑 Pass nhà (mật khẩu cửa / khoá số)<input id="u_pass" autocomplete="off" placeholder="Bỏ trống nếu chưa có pass"></label>
-      <div class="muted" id="passNote" style="font-size:12px;margin-bottom:8px">Chỉ Admin và Sales xem được pass. Khách, chủ nhà, CTV chỉ thấy nhãn "🔑 Có pass".</div>
+      <label class="hotchk"><input type="checkbox" id="u_pass"> <span><b>🔑 Có pass</b>: căn có pass cửa, dẫn khách xem nhà dễ (mọi người thấy nhãn "🔑 Có pass")</span></label>
       <label class="hotchk"><input type="checkbox" id="u_hot"> <span><b>★ Căn giá tốt</b>: hiện ở giỏ hàng văn phòng 3D cho khách và sales xem</span></label>
       <div class="photos-box">
         <div class="ph-head"><b>Hình ảnh căn</b> <span class="muted">Khách thấy ảnh này trong giỏ hàng. Ảnh đầu tiên là ảnh bìa.</span></div>
@@ -401,7 +400,7 @@ function openForm(u){
   if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value=""; }
   PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
   $("#u_quick").value = ""; $("#quickNote").textContent = ""; $("#u_quick").closest(".quick").hidden = !!u;
-  $("#u_pass").value = (SEE_PASS && u && PASS[u.id]) || ""; $("#u_pass").placeholder = (!SEE_PASS && u?.has_pass) ? "Căn đã có pass (bạn không xem được). Nhập pass mới để thay" : "Bỏ trống nếu chưa có pass";
+  $("#u_pass").checked = !!u?.has_pass;
   const privOk = isAdmin || !u; $("#privGrid").hidden = !privOk;
   $("#privNote").textContent = isAdmin ? "Thông tin người đăng, người nắm hàng, chủ nhà bên dưới CHỈ QUẢN TRỊ xem được. Nhân viên, cộng tác viên và khách chỉ thấy \"Liên hệ Admin\"." : (u ? "Thông tin người đăng, người nắm hàng, chủ nhà của căn này chỉ quản trị xem và sửa được." : "Bạn có thể ghi người đăng, người nắm hàng, chủ nhà bên dưới. Sau khi lưu, chỉ quản trị xem được, kể cả bạn cũng không xem lại được.");
   PHOTOS = [...(u?.photos || [])]; renderPhotos();
@@ -480,9 +479,9 @@ $("#unitForm").addEventListener("submit", async e => {
   row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null; row.tier=row.tier||null;
   const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
   if (!(HIDE && editing)) { row.code = parseCode(row.code)?.code || normCode(row.code); if (!codeOK(row.code)) return toast("Mã căn chưa đúng mẫu TOÀ.TẦNG.CĂN, ví dụ S1.02.03.04, BS10.12.32.09, GH1.21.32, E1.22.11"); }
-  const pass = $("#u_pass").value.trim(), oldPass = (editing && PASS[editing.id]) || "";
-  const passChanged = pass !== oldPass && (pass || SEE_PASS);
-  if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; if (passChanged) { PASS[id] = pass; (editing||UNITS.find(x=>x.id===id)).has_pass = !!pass; } }
+  const hasPass = $("#u_pass").checked, pass = hasPass ? "Có pass" : "";
+  const passChanged = hasPass !== !!editing?.has_pass;
+  if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; if (passChanged) (editing||UNITS.find(x=>x.id===id)).has_pass = hasPass; }
   else {
     if (HIDE && editing) delete row.code;
     const q = unitSave(editing?.id || null, row);
@@ -529,7 +528,7 @@ function openView(u){
       ${row("Giá",fmtPrice(u.price,u.deal))}${row("Mức giá",TIERS[u.tier])}${row("Trạng thái",stOf(u.status,u.deal))}
       ${row("Phân khu",zoneOf(u.zone).name)}${row("Toà",u.tower)}${row("Loại căn",u.type)}
       ${row("Diện tích",u.area?u.area+" m²":"")}${row("Tầng",u.floor)}${row("Hướng",u.dir)}
-      ${row("View",u.view)}${row("Nội thất",u.furnish)}${row("Văn phòng 3D",u.hot?"★ Đang hiện (Giá tốt)":"Không hiện")}${u.has_pass?row("🔑 Pass nhà",SEE_PASS?(PASS[u.id]||"Có pass"):"Có pass, xem nhà dễ (Sales/Admin giữ pass)"):""}
+      ${row("View",u.view)}${row("Nội thất",u.furnish)}${row("Văn phòng 3D",u.hot?"★ Đang hiện (Giá tốt)":"Không hiện")}${row("🔑 Pass nhà",u.has_pass?"Có pass, xem nhà dễ":"Không pass")}
     </dl>
     ${u.note?`<div><div class="muted" style="font-size:12px">Ghi chú</div><div style="white-space:pre-wrap">${esc(u.note)}</div></div>`:""}
     ${isAdmin&&Object.values(pv).some(Boolean)?`<div class="vw-priv"><b>Nội bộ (chỉ quản trị thấy)</b><dl class="vw-grid" style="margin-top:6px">
