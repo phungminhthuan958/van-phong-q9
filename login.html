@@ -37,7 +37,7 @@ form{display:grid;gap:12px}
     <h1>Văn phòng 3D và giỏ hàng Grand Park Q9</h1>
     <p>Đăng ký tài khoản để xem giỏ hàng căn hộ cập nhật mỗi ngày: giá, toà, tầng, hướng và tình trạng còn hàng.</p>
     <ul>
-      <li>Khách hàng và cộng tác viên xem giỏ hàng ngay sau khi xác nhận email</li>
+      <li>Khách hàng và cộng tác viên xem giỏ hàng ngay sau khi đăng ký</li>
       <li>Nhân viên chờ quản trị duyệt để vào phòng ban</li>
     </ul>
   </section>
@@ -97,7 +97,7 @@ const VN = {
   "Invalid login credentials":"Email hoặc mật khẩu chưa đúng.",
   "Email not confirmed":"Email chưa được xác nhận. Bạn mở hộp thư và bấm vào link xác nhận.",
   "User already registered":"Email này đã đăng ký. Bạn chuyển sang Đăng nhập nhé.",
-  "Database error saving new user":"Email này có thể đã đăng ký rồi. Bạn mở email bấm link xác nhận, hoặc chuyển sang Đăng nhập.",
+  "Database error saving new user":"Email này đã đăng ký rồi. Bạn chuyển sang Đăng nhập nhé.",
 };
 // Khoá nút trong lúc gửi để bấm 2 lần không tạo lỗi
 function busy(form,on){ const b=form.querySelector("button[type=submit],button:not([type])"); if(b){ b.disabled=on; b.style.opacity=on?.6:1; } }

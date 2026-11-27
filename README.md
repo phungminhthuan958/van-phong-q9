@@ -10,7 +10,7 @@ Web có đăng ký tài khoản con. Ai muốn xem giỏ hàng cũng phải đă
 ## Quyền
 | | Xem giỏ hàng | Sửa giỏ hàng | Xem ai nắm hàng / chủ nhà | Duyệt tài khoản |
 |---|---|---|---|---|
-| Khách, CTV | ✓ (sau khi xác nhận email) | | | |
+| Khách, CTV | ✓ (ngay sau khi đăng ký) | | | |
 | Nhân viên các phòng | ✓ (sau khi quản trị duyệt) | | | |
 | Nhân viên Nguồn hàng | ✓ | ✓ | ✓ | |
 | Quản trị | ✓ | ✓ | ✓ | ✓ |
