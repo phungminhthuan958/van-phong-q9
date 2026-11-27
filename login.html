@@ -97,7 +97,10 @@ const VN = {
   "Invalid login credentials":"Email hoặc mật khẩu chưa đúng.",
   "Email not confirmed":"Email chưa được xác nhận. Bạn mở hộp thư và bấm vào link xác nhận.",
   "User already registered":"Email này đã đăng ký. Bạn chuyển sang Đăng nhập nhé.",
+  "Database error saving new user":"Email này có thể đã đăng ký rồi. Bạn mở email bấm link xác nhận, hoặc chuyển sang Đăng nhập.",
 };
+// Khoá nút trong lúc gửi để bấm 2 lần không tạo lỗi
+function busy(form,on){ const b=form.querySelector("button[type=submit],button:not([type])"); if(b){ b.disabled=on; b.style.opacity=on?.6:1; } }
 const vn = e => VN[e?.message] || e?.message || "Có lỗi, bạn thử lại giúp.";
 
 async function goIfApproved(){
@@ -112,7 +115,9 @@ if(configured) goIfApproved();
 $("#fIn").addEventListener("submit", async e=>{
   e.preventDefault();
   if(!configured){ location.href="app.html"; return; }
+  if(e.currentTarget.dataset.busy) return; const f=e.currentTarget; f.dataset.busy=1; busy(f,true);
   const { error } = await sb.auth.signInWithPassword({ email:$("#inEmail").value.trim(), password:$("#inPass").value });
+  delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
   goIfApproved();
 });
@@ -126,11 +131,13 @@ $("#forgot").addEventListener("click", async ()=>{
 $("#fUp").addEventListener("submit", async e=>{
   e.preventDefault();
   if(!configured) return say("Chế độ xem thử chưa đăng ký được. Khi web nối máy chủ thì đăng ký sẽ hoạt động.","warn");
+  const f=e.currentTarget; if(f.dataset.busy) return; f.dataset.busy=1; busy(f,true);
   const kind=document.querySelector("[name=kind]:checked").value;
   const { data, error } = await sb.auth.signUp({
     email:$("#upEmail").value.trim(), password:$("#upPass").value,
     options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim(), kind, dept: kind==="nhanvien"?$("#upDept").value:null } }
   });
+  delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
   if(!data.session) say("Đăng ký xong. Bạn mở email và bấm link xác nhận để kích hoạt tài khoản."+(kind==="nhanvien"?" Sau đó chờ quản trị duyệt.":""),"ok");
   else goIfApproved();
