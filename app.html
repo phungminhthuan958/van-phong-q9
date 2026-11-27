@@ -108,8 +108,9 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
       <label class="f">Tìm mã căn<input id="q" placeholder="VD: S9.03"></label>
       <label class="f">Thuê / bán<select id="fDeal"><option value="">Tất cả</option><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
       <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
-      <label class="f">Văn phòng 3D<select id="fHot"><option value="">Tất cả căn</option><option value="1">Chỉ căn giá tốt</option><option value="0">Căn chưa đánh dấu</option><option value="pass">🔑 Căn có pass</option></select></label>
+      <label class="f">Văn phòng 3D<select id="fHot"><option value="">Tất cả căn</option><option value="1">Chỉ căn giá tốt</option><option value="0">Căn chưa đánh dấu</option></select></label>
       <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
+      <label class="f">🔑 Pass nhà<select id="fPass"><option value="">Tất cả</option><option value="1">Có pass (xem nhà dễ)</option><option value="0">Chưa có pass</option></select></label>
       <button class="btn primary" id="addBtn" hidden>+ Nhập 1 căn</button>
       <button class="btn" id="bulkBtn" hidden>Nhập nhiều căn từ Excel</button>
       <button class="btn" id="zaloBtn" hidden>Đọc tin nhóm Zalo</button>
@@ -286,13 +287,13 @@ DIRS.forEach(d => $("#u_dir").insertAdjacentHTML("beforeend", opt(d,d)));
 VIEWS.forEach(v => $("#u_view").insertAdjacentHTML("beforeend", opt(v,v)));
 const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); $("#u_tower").innerHTML = z.towers.map(t=>opt(t,t,sel)).join(""); };
 $("#u_zone").addEventListener("change", ()=>fillTowers()); fillTowers();
-["#q","#fZone","#fStatus","#fHot","#fDeal"].forEach(s=>$(s).addEventListener("input",renderUnits));
+["#q","#fZone","#fStatus","#fHot","#fDeal","#fPass"].forEach(s=>$(s).addEventListener("input",renderUnits));
 const setPriceLbl = () => { const t=$("#u_deal").value==="thue"; $("#priceLbl").textContent = t ? "Giá thuê (triệu/tháng)" : "Giá (tỷ)"; };
 $("#u_deal").addEventListener("change", setPriceLbl);
 
 function renderUnits(){
-  const q=$("#q").value.trim().toLowerCase(), z=$("#fZone").value, s=$("#fStatus").value, h=$("#fHot").value, dl=$("#fDeal").value;
-  const rows = UNITS.filter(u=>(!q||u.code.toLowerCase().includes(q))&&(!z||u.zone===z)&&(!s||u.status===s)&&(!h||(h==="pass"?!!u.has_pass:!!u.hot===(h==="1")))&&(!dl||(u.deal||"ban")===dl))
+  const q=$("#q").value.trim().toLowerCase(), z=$("#fZone").value, s=$("#fStatus").value, h=$("#fHot").value, dl=$("#fDeal").value, pf=$("#fPass").value;
+  const rows = UNITS.filter(u=>(!q||u.code.toLowerCase().includes(q))&&(!z||u.zone===z)&&(!s||u.status===s)&&(!h||!!u.hot===(h==="1"))&&(!pf||!!u.has_pass===(pf==="1"))&&(!dl||(u.deal||"ban")===dl))
     .sort((a,b)=>(a.deal||"ban").localeCompare(b.deal||"ban")||a.price-b.price);
   if (!UNITS.length) {
     $("#units").innerHTML = `<tr><td colspan="9" class="empty">Giỏ hàng đang trống.${canEdit?` Bấm "Thêm căn" để nhập căn đầu tiên, hoặc <button class="btn sm" id="seed">nạp 48 căn mẫu</button> để xem thử (nhớ xoá trước khi gửi khách).`:""}</td></tr>`;
