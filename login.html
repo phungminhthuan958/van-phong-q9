@@ -70,6 +70,7 @@ form{display:grid;gap:12px}
           </div>
         </div>
         <label class="f" id="salesWrap">Sales đang làm việc với bạn (tên hoặc SĐT, nếu có)<input id="upSales" autocomplete="off" maxlength="120"></label>
+        <div class="ownerbox" id="salesBox" hidden><div>Tài khoản <b>Sales</b> được xem mã căn nên cần Admin duyệt. Đăng ký xong bạn chờ Admin duyệt rồi đăng nhập lại. Nếu cần vào ngay, bạn chọn Cộng tác viên (xem hàng, không xem mã căn).</div></div>
         <div class="ownerbox" id="ownerBox" hidden><div>Bạn cần gửi căn để bán hoặc cho thuê? Liên hệ Admin qua Zalo hoặc số điện thoại <b id="ownPhone"></b>, kèm mã căn, giá và ảnh.</div>
           <div class="acts"><a class="btn sm" id="ownZalo" target="_blank" rel="noopener">💬 Nhắn Zalo Admin</a><a class="btn sm" id="ownTel">📞 Gọi Admin</a></div></div>
         <label class="f">Họ và tên<input id="upName" autocomplete="name" required></label>
@@ -99,7 +100,7 @@ $("#ownPhone").textContent=CONTACT.phone; $("#ownZalo").href="https://zalo.me/"+
 const SALES_ID=salesRefFromLink();
 if(SALES_ID){ $("#salesWrap").firstChild.textContent="Sales đang làm việc với bạn: đã ghi nhận theo link sales gửi (có thể ghi thêm nếu cần)"; }
 const kindNow=()=>document.querySelector("[name=kind]:checked").value;
-document.querySelectorAll("[name=kind]").forEach(r=>r.addEventListener("change",()=>{ $("#salesWrap").hidden=kindNow()!=="khach"; $("#ownerBox").hidden=kindNow()!=="chunha"; }));
+document.querySelectorAll("[name=kind]").forEach(r=>r.addEventListener("change",()=>{ $("#salesWrap").hidden=kindNow()!=="khach"; $("#ownerBox").hidden=kindNow()!=="chunha"; $("#salesBox").hidden=kindNow()!=="sales"; }));
 if(!configured) say("Web chưa nối máy chủ đăng nhập. Đang ở chế độ xem thử, bấm Đăng nhập để vào xem.","warn");
 
 const VN = {
@@ -116,7 +117,7 @@ async function goIfApproved(){
   const p = await currentProfile();
   if(!p) return;
   if(p.status==="approved"){ let next="app.html"; try{ next=sessionStorage.getItem("afterLogin")||next; sessionStorage.removeItem("afterLogin"); }catch{} location.replace(next); }
-  else if(p.status==="pending") say("Tài khoản của bạn đang chờ quản trị duyệt. Bạn liên hệ Admin 0933114527 nhé.","warn");
+  else if(p.status==="pending") say("Tài khoản Sales của bạn đã đăng ký xong và đang chờ Admin duyệt. Khi được duyệt, bạn đăng nhập lại là vào được. Cần gấp thì liên hệ Admin 0933114527.","warn");
   else { say("Tài khoản này đã bị khoá. Bạn liên hệ quản trị nhé."); await sb.auth.signOut(); }
 }
 if(configured) goIfApproved();
@@ -148,7 +149,7 @@ $("#fUp").addEventListener("submit", async e=>{
   });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
-  if(!data.session) say("Đăng ký xong. Bạn mở email và bấm link xác nhận để kích hoạt tài khoản.","ok");
+  if(!data.session) say("Đăng ký xong. Bạn mở email và bấm link xác nhận để kích hoạt tài khoản."+(kind==="sales"?" Sau đó chờ Admin duyệt.":""),"ok");
   else { markLoginToday(); goIfApproved(); }
 });
 </script>

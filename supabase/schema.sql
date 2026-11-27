@@ -401,3 +401,29 @@ begin
   return rid;
 end $$;
 grant execute on function public.ctv_save_unit(uuid, jsonb) to authenticated;
+
+-- 17. (2026-11-27) Đăng ký Sales (xem được mã căn) phải chờ Admin duyệt. Các loại khác vào ngay.
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  first_user boolean;
+  k text := coalesce(new.raw_user_meta_data->>'kind', 'khach');
+  sref text := nullif(left(trim(coalesce(new.raw_user_meta_data->>'sales_ref','')),120),'');
+  sphone text := null;
+  sid text := new.raw_user_meta_data->>'sales_id';
+  sp profiles%rowtype;
+begin
+  select not exists(select 1 from profiles) into first_user;
+  if k = 'nhanvien' then k := 'sales'; end if;
+  if k not in ('khach','chunha','sales','ctv') then k := 'khach'; end if;
+  if sid ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select * into sp from profiles where id = sid::uuid and (kind in ('sales','ctv','nhanvien') or role = 'admin');
+    if found then sref := left(coalesce(nullif(sp.full_name,''), 'Sales'), 120); sphone := sp.phone; end if;
+  end if;
+  insert into profiles(id, email, full_name, phone, kind, dept, role, status, sales_ref, sales_phone)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone',
+          case when first_user then 'nhanvien' else k end, null,
+          case when first_user then 'admin' else 'member' end,
+          case when first_user or k <> 'sales' then 'approved' else 'pending' end, sref, sphone);
+  return new;
+end $$;
