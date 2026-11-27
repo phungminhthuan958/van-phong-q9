@@ -198,7 +198,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone } from "./data.js?v=20261127i";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone } from "./data.js?v=20261127j";
 import { sb, requireApproved, loadUnits, signOut, initNotices } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
@@ -280,7 +280,7 @@ function render(){
       ${photosHtml(u)}
       <div class="u-meta"><span><b>${u.type}</b></span><span><b>${u.area}</b> m²</span><span>Tầng <b>${u.floor}</b></span>
         <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span>${u.deal==="thue"?"":`<span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span>`}<span>${u.furnish}</span>
-        <span class="st ${u.status}">${stOf(u.status,u.deal)}</span></div>
+        <span class="st ${u.status}">${stOf(u.status,u.deal)}</span>${u.has_pass?`<span class="st ok" title="Có pass, xem nhà dễ dàng">🔑 Có pass · xem nhà dễ</span>`:""}</div>
       <div class="u-act">
         ${isDone(u.status)?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
           <a href="https://zalo.me/${VIEW_CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo ${VIEW_CONTACT.label} ${VIEW_CONTACT.phone}</a>
@@ -598,6 +598,11 @@ function poseHuman(h,mode,t){
     legs[0].knee.rotation.x=Math.max(0,-s)*.6;legs[1].knee.rotation.x=Math.max(0,s)*.6;
     arms[0].sh.rotation.x=-s*.45;arms[1].sh.rotation.x=s*.45;arms.forEach(a=>a.el.rotation.x=-.25);
     headG.rotation.x=0;headG.rotation.y=0;
+  }else if(mode==="rest"){ // ngồi nghỉ ở ghế phòng chờ: tay đặt lên đùi, nhìn quanh
+    body.position.y=-.36;
+    legs.forEach(l=>{l.hipJ.rotation.x=-Math.PI/2;l.knee.rotation.x=Math.PI/2});
+    arms.forEach(a=>{a.sh.rotation.x=-.4;a.el.rotation.x=-.7});
+    headG.rotation.x=Math.sin(p*.3)*.05;headG.rotation.y=Math.sin(p*.35)*.5;
   }else{ // đứng
     body.position.y=Math.sin(p*1.6)*.006;
     legs.forEach(l=>{l.hipJ.rotation.x=0;l.knee.rotation.x=0});
@@ -616,6 +621,13 @@ function nextWalkPt(from){for(let k=0;k<20;k++){const p=pick(WALK_PTS);if(Math.h
   // không có đường thẳng: đi vòng theo điểm gần nhất trên vòng thảm
   let best=WALK_PTS[0],bd=1e9;WALK_PTS.slice(0,12).forEach(p=>{const d=Math.hypot(p[0]-from[0],p[1]-from[1]);if(d<bd&&segClear(from,p)){bd=d;best=p}});return best}
 const AGENTS=[];
+// Ghế phòng chờ giữa văn phòng (quanh nửa trước bục logo + 2 sofa): người đi lại ghé ngồi nghỉ rồi đi tiếp
+const LOUNGE=[];
+const freeChair=()=>{const f=LOUNGE.filter(c=>!c.busy);return f.length?pick(f):null};
+function goSitLounge(a,from){ // 45% ghé ngồi ghế trống ở phòng chờ
+  if(hr()>.45)return null;const c=freeChair();if(!c)return null;
+  c.busy=a;a.chair=c;return routeTo(from,[c.x,c.z]);
+}
 // agent: {h, mode:"sit"|"walk"|"stand", seat:{x,z,rot}|null, route:[[x,z]...], timer, exit:[[x,z]...] (đường từ ghế ra lối đi)}
 function moveAgent(a,dt){
   const tgt=a.route[0],o=a.h.position,dx=tgt[0]-o.x,dz=tgt[1]-o.z,d=Math.hypot(dx,dz),sp=a.speed*dt;
@@ -637,19 +649,24 @@ function updateAgents(dt,t){
   AGENTS.forEach(a=>{
     if(!a.h.parent)return;
     if(a.mode==="idle"){poseHuman(a.h,"stand",t);return}
-    if(a.mode==="sit"||a.mode==="stand"){
+    if(a.mode==="sit"||a.mode==="stand"||a.mode==="rest"){
       a.timer-=dt;
       if(a.timer<=0){
+        const wasRest=a.mode==="rest";
         a.mode="walk";a.h.position.y=0;
-        if(a.seat){ // đứng dậy: ra cửa phòng ban, đi dạo 2-4 điểm, quay về đúng ghế
-          const ex=a.exit,w=wander(ex[ex.length-1],2+Math.floor(hr()*3));
-          a.route=[...ex,...w.pts,...routeTo(w.last,ex[ex.length-1]),...[...ex].reverse().slice(1),[a.seat.x,a.seat.z]];
-        }else{const w=wander([a.h.position.x,a.h.position.z],2+Math.floor(hr()*3));a.route=w.pts}
+        if(wasRest){ // đứng dậy khỏi ghế phòng chờ: đi dạo thêm rồi (nếu là nhân viên) về chỗ làm
+          const c=a.chair;c.busy=null;a.chair=null;const w=wander([c.x,c.z],1+Math.floor(hr()*2));
+          a.route=a.seat?[...w.pts,...routeTo(w.last,a.exit[a.exit.length-1]),...[...a.exit].reverse().slice(1),[a.seat.x,a.seat.z]]:w.pts;
+        }else if(a.seat){ // đứng dậy: ra cửa phòng ban, đi dạo 2-4 điểm, có khi ghé phòng chờ ngồi, rồi quay về đúng ghế
+          const ex=a.exit,w=wander(ex[ex.length-1],1+Math.floor(hr()*3)),lg=goSitLounge(a,w.last);
+          a.route=lg?[...ex,...w.pts,...lg]:[...ex,...w.pts,...routeTo(w.last,ex[ex.length-1]),...[...ex].reverse().slice(1),[a.seat.x,a.seat.z]];
+        }else{const w=wander([a.h.position.x,a.h.position.z],1+Math.floor(hr()*3)),lg=goSitLounge(a,w.last);a.route=lg?[...w.pts,...lg]:w.pts}
       }
     }
     if(a.mode==="walk"){
       if(!a.route.length){
-        if(a.seat){a.mode="sit";a.h.position.set(a.seat.x,0,a.seat.z);a.h.rotation.y=a.seat.rot;a.timer=20+hr()*40}
+        if(a.chair){a.mode="rest";a.h.position.set(a.chair.x,0,a.chair.z);a.h.rotation.y=a.chair.rot;a.timer=8+hr()*16}
+        else if(a.seat){a.mode="sit";a.h.position.set(a.seat.x,0,a.seat.z);a.h.rotation.y=a.seat.rot;a.timer=20+hr()*40}
         else{a.mode="stand";a.timer=3+hr()*6}
       }else moveAgent(a,dt);
     }
@@ -673,7 +690,7 @@ function guestText(p){
 }
 function drawGuests(list){
   const ids=new Set(list.map(p=>p.id));
-  for(const [id,o] of guestMap)if(!ids.has(id)){guestG.remove(o.h);const k=AGENTS.indexOf(o.agent);if(k>=0)AGENTS.splice(k,1);guestMap.delete(id)}
+  for(const [id,o] of guestMap)if(!ids.has(id)){if(o.agent.chair)o.agent.chair.busy=null;guestG.remove(o.h);const k=AGENTS.indexOf(o.agent);if(k>=0)AGENTS.splice(k,1);guestMap.delete(id)}
   list.forEach(p=>{
     const txt=guestText(p),o=guestMap.get(p.id);
     if(o&&o.txt===txt)return;
@@ -718,6 +735,14 @@ else if(sb){
 const sofaM=M(0x46555c,{roughness:.95});
 function sofa(x,z,rot){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);box(2.2,.45,.9,sofaM,0,.25,0,g);box(2.2,.6,.2,sofaM,0,.75,-.35,g);box(.2,.35,.9,sofaM,-1.1,.6,0,g);box(.2,.35,.9,sofaM,1.1,.6,0,g)}
 sofa(-3.8,7.6,Math.PI*.85); sofa(3.8,7.6,-Math.PI*.85);
+// 2 chỗ ngồi trên mỗi sofa
+[[-3.8,7.6,Math.PI*.85],[3.8,7.6,-Math.PI*.85]].forEach(([x,z,r])=>[-.5,.5].forEach(lx=>LOUNGE.push({x:x+lx*Math.cos(r)+.08*Math.sin(r),z:z-lx*Math.sin(r)+.08*Math.cos(r),rot:r,busy:null})));
+// Ghế bành phòng chờ quanh nửa trước bục logo, quay mặt vào logo
+const chairM=M(0x5a4232,{roughness:.9}),cushM=M(0xc9a46a,{roughness:.95});
+[50,70,90,110,130].forEach(deg=>{const a=deg*Math.PI/180,x=Math.cos(a)*5.6,z=Math.sin(a)*5.6,rot=Math.atan2(-x,-z);
+  const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);
+  box(.72,.42,.66,cushM,0,.21,0,g);box(.72,.52,.14,chairM,0,.66,-.3,g);box(.12,.24,.66,chairM,-.36,.52,0,g);box(.12,.24,.66,chairM,.36,.52,0,g);
+  LOUNGE.push({x,z,rot,busy:null});});
 function desk(x,z,rot=0,s=1){
   const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;g.scale.set(s,1,s);scene.add(g);
   box(2.2,.06,1.1,M(0x8a6a44,{roughness:.4}),0,.76,0,g);

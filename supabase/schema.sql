@@ -552,3 +552,38 @@ begin
   update units set hot = false where status in ('sold','rented') and hot;
 end $$;
 grant execute on function public.recompute_tiers() to authenticated;
+
+-- 22. (2026-11-27) Pass nhà (mật khẩu cửa / khoá số): căn có pass thì dễ dẫn khách xem, dễ chốt.
+--     Mọi người thấy nhãn "🔑 Có pass" (units.has_pass). Bản thân mật khẩu chỉ Admin và Sales/nhân viên xem được;
+--     CTV vẫn nhập/đổi được pass nhưng không xem lại được; khách và chủ nhà không bao giờ thấy.
+alter table public.units add column if not exists has_pass boolean not null default false;
+create table if not exists public.unit_pass (
+  unit_id uuid primary key references public.units(id) on delete cascade,
+  pass text not null,
+  updated_at timestamptz not null default now(),
+  updated_by uuid default auth.uid()
+);
+alter table public.unit_pass enable row level security;
+create or replace function public.can_see_pass() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and status = 'approved'
+                and (role = 'admin' or kind in ('sales','nhanvien')))
+$$;
+grant execute on function public.can_see_pass() to authenticated;
+drop policy if exists "unit_pass_select" on public.unit_pass;
+create policy "unit_pass_select" on public.unit_pass for select using (public.can_see_pass());
+grant select on public.unit_pass to authenticated;
+create or replace function public.set_unit_pass(p_unit uuid, p_pass text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  if coalesce(trim(p_pass), '') = '' then
+    delete from unit_pass where unit_id = p_unit;
+    update units set has_pass = false where id = p_unit and has_pass;
+  else
+    insert into unit_pass(unit_id, pass, updated_at, updated_by) values (p_unit, trim(p_pass), now(), auth.uid())
+      on conflict (unit_id) do update set pass = excluded.pass, updated_at = now(), updated_by = auth.uid();
+    update units set has_pass = true where id = p_unit and not has_pass;
+  end if;
+end $$;
+grant execute on function public.set_unit_pass(uuid, text) to authenticated;

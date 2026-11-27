@@ -84,6 +84,7 @@ export function postText(u, contact) {
     `🛋️ ${u.furnish || "Bàn giao cơ bản"}`,
     u.deal === "thue" ? `💰 Giá thuê: ${fmtPrice(u.price, u.deal)}` : `💰 Giá: ${fmtPrice(u.price)} (~${Math.round(u.price * 1000 / u.area)} tr/m²)`,
     `📌 Tình trạng: ${stOf(u.status,u.deal)}`,
+    u.has_pass ? "🔑 Có pass, xem nhà dễ dàng bất cứ lúc nào" : "",
     contact.phone ? `📞 Liên hệ${contact.label ? " " + contact.label : ""}: ${contact.phone} (Zalo)` : "",
   ].filter(Boolean).join("\n");
 }
