@@ -46,7 +46,7 @@ export const codeParts = c => { const p = String(c||"").split("."); return p.len
 export const towerInfo = t => { for (const z of ZONES) if (z.tf[t]) return { zone:z, floors:z.tf[t][0], shape:z.tf[t][1] }; return null; };
 export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59,70]},{n:"2PN+",a:[69,76]},{n:"3PN",a:[80,98]}];
 export const DIRS = ["Đông Nam","Tây Bắc","Đông Bắc","Tây Nam","Nam","Bắc","Đông","Tây"];
-export const VIEWS = ["Nội khu","Công viên 36ha","Hồ bơi","Thành phố","Sông"];
+export const VIEWS = ["Nội khu","Ngoại khu","Công viên 36ha","Hồ bơi","Thành phố","Sông"];
 export const ST = { ok:"Còn hàng", hold:"Đang giữ chỗ", sold:"Đã bán", rented:"Đã cho thuê" };
 export const isDone = s => s==="sold" || s==="rented";   // hết hàng: đã bán hoặc đã cho thuê
 export const stOf = status => ST[status] || status;
@@ -168,7 +168,7 @@ export function parseZalo(text){
     else if ((pm = b.match(/(\d{3,5})\s*(?:tr|triệu)\b/))) price = +pm[1] / 1000;
     const dm = b.match(/(?:bc|ban công|hướng|h\.)\s*:?\s*(đông nam|đông bắc|tây nam|tây bắc|đn|đb|tn|tb|đông|tây|nam|bắc)\b/);
     const dir = dm ? DIR_WORDS.find(([k])=>k===dm[1])[1] : "";
-    const vm = b.match(/view\s*:?\s*(công viên|hồ bơi|nội khu|sông|thành phố|landmark|trực diện[^,.\n]*)/);
+    const vm = b.match(/view\s*:?\s*(công viên|hồ bơi|nội khu|ngoại khu|sông|thành phố|landmark|trực diện[^,.\n]*)/);
     const view = vm ? vm[1].replace(/^./, c => c.toUpperCase()) : "";
     const furnish = /full|nội thất đầy đủ|ntđđ/.test(b) ? "Full nội thất" : "Bàn giao cơ bản";
     const status = /đã cho thuê|đã thuê/.test(b) ? "rented" : /đã bán|đã cọc|đã chốt|out\b/.test(b) ? (/cọc/.test(b) ? "hold" : "sold") : "ok";
