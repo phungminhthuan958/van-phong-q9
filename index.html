@@ -51,9 +51,14 @@ aside{background:var(--panel);border-left:1px solid var(--line);display:flex;fle
 .cart-head h2{margin:0;font-family:var(--display);font-size:18px;font-weight:600;display:flex;align-items:baseline;gap:8px}
 .cart-head h2 b{font-size:13px;font-weight:500;color:var(--muted);font-family:var(--body)}
 .sample{font-size:12px;color:var(--hold);background:rgba(226,178,74,.1);border:1px solid rgba(226,178,74,.35);border-radius:6px;padding:6px 8px}
-.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.qsearch{display:grid;gap:4px;margin-bottom:8px}
-.qsearch input{width:100%;font-size:15px;padding:10px 12px;border-color:rgba(214,167,92,.55)}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.filters[hidden]{display:none}
+.filters select{padding:6px 8px;font-size:13px}
+.qrow{display:flex;gap:6px}
+.qrow input{flex:1;min-width:0;padding:7px 10px;font-size:14px;border-color:rgba(214,167,92,.55)}
+.fbtn{flex:none;padding:0 12px;border-radius:8px;border:1px solid var(--line,#2c3e46);background:transparent;color:inherit;font-size:13px;cursor:pointer}
+.fbtn[aria-expanded="true"]{border-color:#d6a75c;color:#f0cf98}
+#fCount b{display:inline-block;margin-left:5px;min-width:17px;padding:0 4px;border-radius:9px;background:#d6a75c;color:#12212a;font-size:11px}
 select{font:inherit;color:var(--text);background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:100%}
 label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .tower-pill{display:flex;align-items:center;gap:8px;font-size:13px}
@@ -181,13 +186,13 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
       <h2>Căn giá tốt <b id="count"></b></h2>
       <div class="sample" id="roleNote" hidden></div>
       <div class="sample" id="sampleNote">Dữ liệu mẫu để xem giao diện. Giá, mã căn và trạng thái chưa phải hàng thật.</div>
-      <label class="f qsearch">🔎 Tìm hàng<input id="fQ" type="search" autocomplete="off" placeholder="vd: 2pn rainbow dưới 3 tỷ · thuê 1pn+ 8tr · view sông · có pass"></label>
-      <div class="filters">
-        <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
-        <label class="f">Loại căn<select id="fType"><option value="">Tất cả</option></select></label>
-        <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
-        <label class="f">🔑 Pass nhà<select id="fPass"><option value="">Tất cả</option><option value="1">Có pass (xem nhà dễ)</option><option value="0">Chưa có pass</option></select></label>
-        <label class="f">Sắp xếp<select id="fSort"><option value="price">Giá tăng dần</option><option value="-price">Giá giảm dần</option><option value="area">Diện tích</option></select></label>
+      <div class="qrow"><input id="fQ" type="search" autocomplete="off" aria-label="Tìm hàng" placeholder="🔎 Tìm: 2pn rainbow dưới 3 tỷ…"><button class="fbtn" id="fToggle" type="button" aria-expanded="false">Lọc<span id="fCount"></span> ▾</button></div>
+      <div class="filters" id="fBox" hidden>
+        <select id="fZone" aria-label="Phân khu"><option value="">Mọi phân khu</option></select>
+        <select id="fType" aria-label="Loại căn"><option value="">Mọi loại căn</option></select>
+        <select id="fStatus" aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select>
+        <select id="fPass" aria-label="Pass nhà"><option value="">🔑 Pass: tất cả</option><option value="1">🔑 Có pass</option><option value="0">Chưa có pass</option></select>
+        <select id="fSort" aria-label="Sắp xếp"><option value="price">Giá tăng dần</option><option value="-price">Giá giảm dần</option><option value="area">Diện tích</option></select>
       </div>
       <div class="tower-pill" id="towerPill" hidden>Đang lọc toà <b id="towerName"></b> <button id="clearTower">Bỏ lọc</button></div>
     </div>
@@ -315,6 +320,9 @@ $("#list").addEventListener("click",e=>{
   copy(msgFor(u));
 });
 $("#fQ").addEventListener("input",e=>{state.q=e.target.value;render();highlight()});
+$("#fToggle").addEventListener("click",e=>{const box=$("#fBox"),open=box.hidden;box.hidden=!open;e.currentTarget.setAttribute("aria-expanded",open)});
+const fCount=()=>{const n=["#fZone","#fType","#fStatus","#fPass"].filter(s=>$(s).value).length+($("#fSort").value!=="price"?1:0);$("#fCount").innerHTML=n?`<b>${n}</b>`:""};
+["#fZone","#fType","#fStatus","#fPass","#fSort"].forEach(s=>$(s).addEventListener("change",fCount));
 ["zone","type","status","pass","sort"].forEach(k=>$("#f"+k[0].toUpperCase()+k.slice(1)).addEventListener("change",e=>{state[k]=e.target.value;render();highlight()}));
 $("#clearTower").addEventListener("click",()=>{state.tower="";state.active="";render();highlight()});
 render();
@@ -811,7 +819,7 @@ function openFromHash(){
   const m=location.hash.match(/^#(can|u)=(.+)$/); if(!m) return;
   const v=decodeURIComponent(m[2]),u=UNITS.find(x=>m[1]==="u"?String(x.id)===v:(x.code===v||x.code===normCode(v)));
   if(!u){toast("Căn này không còn trong giỏ hàng");return}
-  showTab("cart");state.zone="";state.type="";state.status="";state.pass="";state.q="";state.tower="";["#fZone","#fType","#fStatus","#fPass","#fQ"].forEach(s=>$(s).value="");
+  showTab("cart");state.zone="";state.type="";state.status="";state.pass="";state.q="";state.tower="";["#fZone","#fType","#fStatus","#fPass","#fQ"].forEach(s=>$(s).value="");fCount();
   state.active=u.code;render();
   document.querySelector(`.unit[data-code="${CSS.escape(u.code)}"]`)?.scrollIntoView({block:"center"});
   showUnit(u);
