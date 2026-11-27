@@ -42,6 +42,24 @@ export function normCode(c){
   return p.join(".");
 }
 export const codeOK = c => CODE_RE.test(c);
+// Hiểu cả mã viết liền / có tiền tố khu: "LBVE21805" → Lumière, E2.18.05 · "MCP A 1207" → Masteri, A.12.07 · "s1021805" → S1.02.18.05
+const ZONE_PRE = [[/^(LUMIERE|LUMIÈRE|LBV|LB)/, "lumiere"], [/^(MASTERI|MCP)/, "masteri"]];
+export function parseCode(raw){
+  let s = String(raw||"").trim().toUpperCase().replace(/[\s\-_,]+/g, ""), hint = null;
+  for (const [re, z] of ZONE_PRE) if (re.test(s)) { s = s.replace(re, "").replace(/^[.]/, ""); hint = z; break; }
+  if (!s) return null;
+  const zones = hint ? ZONES.filter(z=>z.id===hint) : ZONES;
+  const flat = s.replace(/\./g, "");
+  const all = zones.flatMap(z => z.towers.map(t => ({ t, z: z.id, c: t.replace(/\./g, "") }))).sort((a,b)=>b.c.length-a.c.length);
+  for (const x of all) {
+    if (!flat.startsWith(x.c)) continue;
+    const rest = flat.slice(x.c.length); if (!/^\d{3,4}$/.test(rest)) continue;
+    const fl = rest.slice(0, -2).padStart(2, "0"), no = rest.slice(-2);
+    return { code: `${x.t}.${fl}.${no}`, zone: hint || x.z, tower: x.t, floor: +fl, known: true };
+  }
+  const c = normCode(s); const cp = codeParts(c);
+  return codeOK(c) ? { code: c, zone: hint || zoneOfTower(cp.tower), tower: cp.tower, floor: cp.floor, known: zones.some(z=>z.towers.includes(cp.tower)) } : null;
+}
 export const codeParts = c => { const p = String(c||"").split("."); return p.length>=3 ? { tower:p.slice(0,-2).join("."), floor:+p.at(-2), no:p.at(-1) } : null; };
 export const towerInfo = t => { for (const z of ZONES) if (z.tf[t]) return { zone:z, floors:z.tf[t][0], shape:z.tf[t][1] }; return null; };
 export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59,70]},{n:"2PN+",a:[69,76]},{n:"3PN",a:[80,98]}];
@@ -147,24 +165,47 @@ export function parseZalo(text){
   // Tách từng tin: theo dòng trống, hoặc dòng bắt đầu bằng giờ / tên người gửi kiểu Zalo ("10:32"), hoặc từ khoá bán/cho thuê.
   const blocks = text.replace(/\r/g,"").split(/\n\s*\n|\n(?=\s*(?:\[?\d{1,2}:\d{2}|[-•*🔥🏢✅📣]|bán|cần bán|chính chủ|giỏ hàng)\b)/i).map(b=>b.trim()).filter(b=>b.length>10);
   const out = [];
-  for (const raw of blocks) {
+  for (const raw of blocks) { const r = parseBlock(raw, false); if (r) out.push(r); }
+  return out;
+}
+// Dán nhanh 1 tin (hoặc chỉ 1 mã căn) vào form Thêm căn: nhận cả tin cho thuê
+export function parseOne(text){
+  const raw = String(text||"").trim(); if (!raw) return null;
+  const r = parseBlock(raw, true) || {};
+  // mã căn viết liền / có tiền tố khu: "LBV E2 18 05", "LBVE21805", "MCP-A-1207", "s1.02 1805"
+  if (!r.code || /\?/.test(r.code)) {
+    const toks = raw.split(/[\s,;:]+/).filter(Boolean);
+    for (let i = 0; i < toks.length; i++) for (let k = Math.min(4, toks.length - i); k >= 1; k--) {
+      const pc = parseCode(toks.slice(i, i + k).join(""));
+      if (pc && pc.known) { Object.assign(r, { code: pc.code, tower: pc.tower, zone: pc.zone || r.zone, floor: r.floor || pc.floor }); i = toks.length; break; }
+    }
+  }
+  return r.code || r.price || r.area ? r : null;
+}
+function parseBlock(raw, allowRent){
     const b = raw.toLowerCase();
-    if (/cho thuê|thuê\b/.test(b) && !/bán/.test(b)) continue;                 // tạm bỏ tin cho thuê
+    const rent = /cho thuê|thuê\b/.test(b) && !/bán/.test(b);
+    if (rent && !allowRent) return null;                 // đọc nhóm Zalo: tạm bỏ tin cho thuê
     const tm = raw.match(/\b(S\s?\d{1,2}\.\d{2}|GH\s?\d{1,2}|O[PS]\s?\d|BS\s?\d{1,2}|BE\s?\d{1,2}|B\s?\d{1,2})\b/i)
       || (/masteri|mcp|centre point/.test(b) && raw.match(/\b(E\s?[12]|[A-D])(?=\s?[.\-]\s?\d|\s+\d)/i))      // Masteri: block A–D, E1, E2 (vd "A.12.07", "E1-1508"), chỉ khi tin có nhắc Masteri
       || (/lumi[eè]re/.test(b) && raw.match(/\b(D\s?[12]|E\s?[12]|[A-C])(?=\s?[.\-]\s?\d|\s+\d)/i));   // Lumière: A, B, C, D1, D2, E1, E2
-    if (!tm) continue;
+    if (!tm && !allowRent) return null;
+    if (!tm) return parseRest(raw, b, rent, null, null, null);
     let tower = tm[1].replace(/\s/g,"").toUpperCase().replace(/^OP/,"OS").replace(/^B(\d)/,"BE$1");
     const zone = zoneOfTower(tower, b);
     const after = raw.slice(tm.index + tm[0].length);
     const dot = after.match(/^\s?[.\-]\s?(\d{1,2})[.\-](\d{2})\b/);           // kiểu Masteri "A.12.07" = block A, tầng 12, căn 07
     const num = dot ? dot[1].padStart(2,"0")+dot[2] : (after.match(/^\s*[-.\s]\s*(\d{3,4})\b/) || raw.match(/căn\s*(?:số\s*)?(\d{3,4})\b/i) || [])[1];
+    return parseRest(raw, b, rent, tower, zone, num);
+}
+function parseRest(raw, b, rent, tower, zone, num){
     let floor = (b.match(/tầng\s*(\d{1,2})\b/) || [])[1]; floor = floor ? +floor : (num ? Math.floor(+num/100) : null);
     const ty = (b.match(/studio|[123]\s?pn\s?\+?\s?1?|[123]\s?(?:phòng ngủ|pn)/) || [""])[0];
     const type = /studio/.test(ty) ? "Studio" : ty ? `${ty.match(/\d/)[0]}PN${/\+|\d\s?pn\s?1/.test(ty.replace(/^\d/,""))?"+":""}` : "";
     const area = (b.match(/(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:m2|m²|m\b|met)/) || [])[1];
     let price = null, pm;
     if ((pm = b.match(/(\d+(?:[.,]\d+)?)\s*(?:tỷ|tỉ|ty|ti)\s*(\d{1,3})?/))) price = parseFloat(pm[1].replace(",",".")) + (pm[2] ? +pm[2] / Math.pow(10, pm[2].length) : 0);
+    else if (rent && (pm = b.match(/(\d+(?:[.,]\d+)?)\s*(?:tr|triệu)/))) price = parseFloat(pm[1].replace(",","."));   // thuê: triệu/tháng
     else if ((pm = b.match(/(\d{3,5})\s*(?:tr|triệu)\b/))) price = +pm[1] / 1000;
     const dm = b.match(/(?:bc|ban công|hướng|h\.)\s*:?\s*(đông nam|đông bắc|tây nam|tây bắc|đn|đb|tn|tb|đông|tây|nam|bắc)\b/);
     const dir = dm ? DIR_WORDS.find(([k])=>k===dm[1])[1] : "";
@@ -173,11 +214,9 @@ export function parseZalo(text){
     const furnish = /full|nội thất đầy đủ|ntđđ/.test(b) ? "Full nội thất" : "Bàn giao cơ bản";
     const status = /đã cho thuê|đã thuê/.test(b) ? "rented" : /đã bán|đã cọc|đã chốt|out\b/.test(b) ? (/cọc/.test(b) ? "hold" : "sold") : "ok";
     const phone = (raw.match(/(?:\+?84|0)[\s.]?\d{2,3}[\s.]?\d{3}[\s.]?\d{3,4}/) || [""])[0].replace(/[\s.]/g,"");
-    const code = num ? `${tower}.${String(num).padStart(4,"0").slice(0,2)}.${String(num).padStart(4,"0").slice(2)}` : `${tower}.??.??`;
-    out.push({ code, zone, tower, type, area: area ? area.replace(".",",") : "", floor: floor ?? "", dir, view,
-      price: price ? String(Math.round(price*100)/100).replace(".",",") : "", status: ST[status], furnish, holder: phone, raw });
-  }
-  return out;
+    const code = !tower ? "" : num ? `${tower}.${String(num).padStart(4,"0").slice(0,2)}.${String(num).padStart(4,"0").slice(2)}` : `${tower}.??.??`;
+    return { code, zone, tower, type, area: area ? area.replace(".",",") : "", floor: floor ?? "", dir, view, deal: rent ? "thue" : "ban", statusKey: status,
+      price: price ? String(Math.round(price*100)/100).replace(".",",") : "", status: ST[status], furnish, holder: phone, raw };
 }
 
 /* ---------- Chia sẻ căn qua Zalo / Messenger ---------- */

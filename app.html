@@ -85,6 +85,10 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 .vw-grid div{display:grid;gap:2px}.vw-grid dt{font-size:12px;color:var(--muted)}.vw-grid dd{margin:0;font-weight:500}
 .vw-priv{border:1px dashed rgba(214,167,92,.5);border-radius:10px;padding:10px 12px}
 .vw-priv b{font-size:12.5px;color:var(--brass)}
+.quick{border:1px dashed rgba(214,167,92,.6);background:rgba(214,167,92,.06);border-radius:10px;padding:10px 12px;margin:6px 0 12px}
+.quick textarea{margin-top:6px;resize:vertical}
+.f.wide{grid-column:span 2}
+@media (max-width:640px){.f.wide{grid-column:auto}}
 .vw-acts{display:flex;flex-wrap:wrap;gap:8px}
 </style>
 </head>
@@ -141,21 +145,26 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
     </div>
     <form class="panel" id="unitForm" hidden>
       <h3 id="formTitle">Thêm căn</h3>
+      <div class="quick">
+        <label class="f">⚡ Dán nhanh: dán nguyên tin Zalo hoặc gõ mã căn (vd: LBV E2 18 05, MCP A 1207, S1.02 1805). Web tự điền các ô bên dưới, anh chỉ cần kiểm tra lại.
+          <textarea id="u_quick" rows="2" placeholder="Cho thuê LBV E2 1805 2PN+ 74,3m2 BC Tây Bắc view nội khu giá 11tr. LH 0909..."></textarea></label>
+        <div class="muted" id="quickNote" style="font-size:12.5px;min-height:1em"></div>
+      </div>
       <div class="grid">
-        <label class="f">Mã căn<input id="u_code" required placeholder="VD: S1.02.03.04 · BS10.12.32.09 · GH1.21.32 · E1.22.11"></label>
+        <label class="f">Mã căn (TOÀ.TẦNG.CĂN)<input id="u_code" required autocomplete="off" placeholder="VD: E2.18.05 · S1.02.03.04 · GH1.21.32"></label>
         <label class="f">Thuê / bán<select id="u_deal"><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
+        <label class="f"><span id="priceLbl">Giá (tỷ)</span><input id="u_price" type="number" step="0.01" min="0.1" required inputmode="decimal"></label>
+        <label class="f">Diện tích (m²)<input id="u_area" type="number" step="0.01" min="10" required inputmode="decimal"></label>
+        <label class="f">Loại căn<select id="u_type"></select></label>
+        <label class="f">Trạng thái<select id="u_status"><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
         <label class="f">Phân khu<select id="u_zone"></select></label>
         <label class="f">Toà<select id="u_tower"></select></label>
-        <label class="f">Loại căn<select id="u_type"></select></label>
-        <label class="f">Diện tích (m²)<input id="u_area" type="number" step="0.1" min="10" required></label>
         <label class="f">Tầng<input id="u_floor" type="number" min="1" max="60"></label>
         <label class="f">Hướng ban công<select id="u_dir"></select></label>
         <label class="f">View<select id="u_view"></select></label>
-        <label class="f"><span id="priceLbl">Giá (tỷ)</span><input id="u_price" type="number" step="0.01" min="0.1" required></label>
-        <label class="f">Mức giá<select id="u_tier"><option value="">Chưa xếp</option><option value="tot">Giá tốt</option><option value="thitruong">Giá thị trường</option><option value="cao">Giá cao</option></select></label>
-        <label class="f">Trạng thái<select id="u_status"><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
         <label class="f">Nội thất<select id="u_furnish"><option>Bàn giao cơ bản</option><option>Full nội thất</option></select></label>
-        <label class="f">Ghi chú (khách cũng thấy)<input id="u_note"></label>
+        <label class="f">Mức giá<select id="u_tier"><option value="">Tự xếp</option><option value="tot">Giá tốt</option><option value="thitruong">Giá thị trường</option><option value="cao">Giá cao</option></select></label>
+        <label class="f wide">Ghi chú (khách cũng thấy)<input id="u_note"></label>
       </div>
       <label class="f" style="margin:10px 0 2px">🔑 Pass nhà (mật khẩu cửa / khoá số)<input id="u_pass" autocomplete="off" placeholder="Bỏ trống nếu chưa có pass"></label>
       <div class="muted" id="passNote" style="font-size:12px;margin-bottom:8px">Chỉ Admin và Sales xem được pass. Khách, chủ nhà, CTV chỉ thấy nhãn "🔑 Có pass".</div>
@@ -225,7 +234,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower } from "./data.js?v=20261127o";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower, parseCode, parseOne } from "./data.js?v=20261127p";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -287,12 +296,35 @@ DIRS.forEach(d => $("#u_dir").insertAdjacentHTML("beforeend", opt(d,d)));
 VIEWS.forEach(v => $("#u_view").insertAdjacentHTML("beforeend", opt(v,v)));
 const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); const ts = sel && !z.towers.includes(sel) ? [...z.towers, sel] : z.towers; $("#u_tower").innerHTML = ts.map(t=>opt(t,t,sel)).join(""); };
 // Gõ mã căn xong: tự chuẩn hoá theo mẫu TOÀ.TẦNG.CĂN, tự chọn phân khu, toà, tầng
-$("#u_code").addEventListener("change", () => {
-  const c = normCode($("#u_code").value); $("#u_code").value = c; const cp = codeParts(c); if (!cp) return;
-  const cur = ZONES.find(z=>z.id===$("#u_zone").value), z = cur?.towers.includes(cp.tower) ? cur : (ZONES.find(z=>z.towers.includes(cp.tower)) || ZONES.find(z=>z.id===zoneOfTower(cp.tower)) || cur);
+function applyCode(v, hint){
+  const pc = parseCode(v); if (pc && hint) pc.zone = hint; const c = pc?.code || normCode(v); $("#u_code").value = c; const cp = codeParts(c); if (!cp) return;
+  const cur = ZONES.find(z=>z.id===$("#u_zone").value);
+  // tên toà trùng giữa Masteri và Lumière: mã có tiền tố (LBV/MCP) thì theo tiền tố, không thì giữ phân khu đang chọn
+  const z = pc?.zone && (hint || /^(LUMI|LB|MASTERI|MCP)/i.test(String(v).trim()) || !cur?.towers.includes(cp.tower)) ? ZONES.find(z=>z.id===pc.zone) : cur?.towers.includes(cp.tower) ? cur : (ZONES.find(z=>z.towers.includes(cp.tower)) || ZONES.find(z=>z.id===zoneOfTower(cp.tower)) || cur);
   if (z) { $("#u_zone").value = z.id; fillTowers(cp.tower); }
   if (cp.floor) $("#u_floor").value = cp.floor;
-});
+}
+$("#u_code").addEventListener("change", () => applyCode($("#u_code").value));
+// Dán nhanh: đọc tin rồi điền các ô
+const setSel = (id, v) => { const el = $(id); if (!v) return false; if (![...el.options].some(o=>o.value===v)) el.insertAdjacentHTML("beforeend", opt(v,v)); el.value = v; return true; };
+let quickT;
+$("#u_quick").addEventListener("input", () => { clearTimeout(quickT); quickT = setTimeout(() => {
+  const r = parseOne($("#u_quick").value), got = [];
+  if (!r) { $("#quickNote").textContent = $("#u_quick").value.trim() ? "Chưa đọc được, anh điền tay các ô bên dưới giúp em." : ""; return; }
+  if (r.deal) { $("#u_deal").value = r.deal; setPriceLbl(); got.push(r.deal==="thue"?"Cho thuê":"Bán"); }
+  if (r.code && !/\?/.test(r.code) && !(HIDE && editing)) { applyCode(r.code, r.zone); got.push("mã " + r.code); }
+  else if (r.zone) { $("#u_zone").value = r.zone; fillTowers(r.tower); got.push(zoneOf(r.zone).name); }
+  if (r.price) { $("#u_price").value = String(r.price).replace(",", "."); got.push("giá"); }
+  if (r.area) { $("#u_area").value = String(r.area).replace(",", "."); got.push("diện tích"); }
+  if (r.floor) $("#u_floor").value = r.floor;
+  if (setSel("#u_type", r.type)) got.push(r.type);
+  if (setSel("#u_dir", r.dir)) got.push("hướng " + r.dir);
+  if (setSel("#u_view", r.view)) got.push("view " + r.view);
+  if (r.furnish === "Full nội thất") { $("#u_furnish").value = r.furnish; got.push("full nội thất"); }
+  if (r.statusKey && r.statusKey !== "ok") { $("#u_status").value = r.statusKey; got.push(ST[r.statusKey]); }
+  if (r.holder && $("#p_holder") && !$("#privGrid").hidden && !$("#p_holder").value) { $("#p_holder").value = r.holder; got.push("SĐT người nắm"); }
+  $("#quickNote").textContent = got.length ? "✓ Đã điền: " + got.join(", ") + ". Anh kiểm tra lại rồi bấm Lưu." : "Chưa đọc được, anh điền tay giúp em.";
+}, 250); });
 $("#u_zone").addEventListener("change", ()=>fillTowers()); fillTowers();
 ["#q","#fZone","#fStatus","#fHot","#fDeal","#fPass"].forEach(s=>$(s).addEventListener("input",renderUnits));
 const setPriceLbl = () => { const t=$("#u_deal").value==="thue"; $("#priceLbl").textContent = t ? "Giá thuê (triệu/tháng)" : "Giá (tỷ)"; };
@@ -362,6 +394,7 @@ function openForm(u){
   F.forEach(k => { if (k!=="tower") $("#u_"+k).value = u ? (u[k] ?? "") : (k==="status"?"ok":k==="zone"?ZONES[0].id:""); });
   if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value="Bàn giao cơ bản"; }
   PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
+  $("#u_quick").value = ""; $("#quickNote").textContent = ""; $("#u_quick").closest(".quick").hidden = !!u;
   $("#u_pass").value = (SEE_PASS && u && PASS[u.id]) || ""; $("#u_pass").placeholder = (!SEE_PASS && u?.has_pass) ? "Căn đã có pass (bạn không xem được). Nhập pass mới để thay" : "Bỏ trống nếu chưa có pass";
   const privOk = isAdmin || !u; $("#privGrid").hidden = !privOk;
   $("#privNote").textContent = isAdmin ? "Thông tin người đăng, người nắm hàng, chủ nhà bên dưới CHỈ QUẢN TRỊ xem được. Nhân viên, cộng tác viên và khách chỉ thấy \"Liên hệ Admin\"." : (u ? "Thông tin người đăng, người nắm hàng, chủ nhà của căn này chỉ quản trị xem và sửa được." : "Bạn có thể ghi người đăng, người nắm hàng, chủ nhà bên dưới. Sau khi lưu, chỉ quản trị xem được, kể cả bạn cũng không xem lại được.");
@@ -369,7 +402,7 @@ function openForm(u){
   // Căn nhập từ nhóm Zalo có thể ghi loại căn, hướng, view, nội thất khác danh sách sẵn: thêm vào lựa chọn để không bị mất khi sửa
   ["type","dir","view","furnish"].forEach(k => { const v = u?.[k], el = $("#u_"+k); if (v && ![...el.options].some(o=>o.value===v)) { el.insertAdjacentHTML("beforeend", opt(v,v)); el.value = v; } });
   $("#u_hot").checked = !!u?.hot; if (!u) $("#u_deal").value = "ban"; setPriceLbl();
-  fillTowers(u?.tower); $("#unitForm").hidden=false; $("#u_code").focus();
+  fillTowers(u?.tower); $("#unitForm").hidden=false; (u ? $("#u_code") : $("#u_quick")).focus();
 }
 $("#addBtn").addEventListener("click", ()=>openForm());
 
@@ -425,7 +458,7 @@ $("#unitForm").addEventListener("submit", async e => {
   row.photos = PHOTOS; row.hot = $("#u_hot").checked;
   row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null; row.tier=row.tier||null;
   const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
-  if (!(HIDE && editing)) { row.code = normCode(row.code); if (!codeOK(row.code)) return toast("Mã căn chưa đúng mẫu TOÀ.TẦNG.CĂN, ví dụ S1.02.03.04, BS10.12.32.09, GH1.21.32, E1.22.11"); }
+  if (!(HIDE && editing)) { row.code = parseCode(row.code)?.code || normCode(row.code); if (!codeOK(row.code)) return toast("Mã căn chưa đúng mẫu TOÀ.TẦNG.CĂN, ví dụ S1.02.03.04, BS10.12.32.09, GH1.21.32, E1.22.11"); }
   const pass = $("#u_pass").value.trim(), oldPass = (editing && PASS[editing.id]) || "";
   const passChanged = pass !== oldPass && (pass || SEE_PASS);
   if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; if (passChanged) { PASS[id] = pass; (editing||UNITS.find(x=>x.id===id)).has_pass = !!pass; } }
