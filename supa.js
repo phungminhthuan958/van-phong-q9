@@ -35,9 +35,10 @@ export async function requireApproved() {
   return p;
 }
 
-export async function loadUnits() {
+export async function loadUnits(hideCode = false) {
   if (!sb) return null;
-  const { data, error } = await sb.from("units").select("*").order("price");
+  // Cộng tác viên đọc qua hàm units_for_ctv: mã căn thật được thay bằng mã ẩn
+  const { data, error } = hideCode ? await sb.rpc("units_for_ctv") : await sb.from("units").select("*").order("price");
   if (error) { console.error(error); return null; }
   return data.map(r => ({ ...r, area: +r.area, price: +r.price }));
 }

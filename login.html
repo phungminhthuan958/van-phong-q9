@@ -20,7 +20,8 @@
 .tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:10px 8px;font-family:var(--display);font-weight:600;color:var(--muted)}
 .tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--brass)}
 form{display:grid;gap:12px}
-.kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kinds{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+@media (max-width:420px){.kinds{grid-template-columns:repeat(2,1fr)}}
 .ownerbox{border:1px solid rgba(214,167,92,.45);background:rgba(214,167,92,.08);border-radius:10px;padding:10px 12px;font-size:13.5px;display:grid;gap:8px}
 .ownerbox .acts{display:flex;gap:8px;flex-wrap:wrap}
 .kinds label{border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:13px;cursor:pointer}
@@ -64,7 +65,8 @@ form{display:grid;gap:12px}
           <div class="kinds">
             <label><input type="radio" name="kind" value="khach" checked>Khách hàng</label>
             <label><input type="radio" name="kind" value="chunha">Chủ nhà</label>
-            <label><input type="radio" name="kind" value="ctv">Sales / CTV</label>
+            <label><input type="radio" name="kind" value="sales">Sales</label>
+            <label><input type="radio" name="kind" value="ctv">Cộng tác viên</label>
           </div>
         </div>
         <label class="f" id="salesWrap">Sales đang làm việc với bạn (tên hoặc SĐT, nếu có)<input id="upSales" autocomplete="off" maxlength="120"></label>

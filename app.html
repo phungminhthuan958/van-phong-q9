@@ -215,7 +215,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127e";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127f";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -230,16 +230,16 @@ sb?.auth.onAuthStateChange(async ev => {
 });
 
 const me = await requireApproved();
-if (!["nhanvien","ctv"].includes(me.kind) && me.role !== "admin") location.replace("index.html");
+if (!["nhanvien","sales"].includes(me.kind) && me.role !== "admin") location.replace("index.html");
 const isAdmin = me.role === "admin";
 if (!me.demo) setShareRef(me.id);
 // Sales/CTV gửi căn: bài đăng ghi SĐT của chính sales đó (không ghi Admin) để giữ khách cho sales.
 // Khách do sales giới thiệu: nút liên hệ trên web cũng là sales đó.
 const digits=v=>String(v||"").replace(/[^0-9]/g,"");
-const IS_SELLER = me.role!=="admin" && ["ctv","nhanvien"].includes(me.kind);
+const IS_SELLER = me.role!=="admin" && ["sales","ctv","nhanvien"].includes(me.kind);
 const SHARE_CONTACT = IS_SELLER ? { phone: digits(me.phone), facebook: CONTACT.facebook, label: "" } : { ...CONTACT, label: "Admin" };
 const VIEW_CONTACT = (me.kind==="khach" && digits(me.sales_phone)) ? { phone: digits(me.sales_phone), facebook: CONTACT.facebook, label: "Sales" + (me.sales_ref ? " " + me.sales_ref : "") } : { ...CONTACT, label: "Admin" };
-const canEdit = isAdmin || ["nhanvien","ctv"].includes(me.kind);   // Sales/CTV và nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn
+const canEdit = isAdmin || ["nhanvien","sales"].includes(me.kind);   // Sales và nhân viên được nhập, sửa, gửi hàng; chỉ quản trị xoá căn. CTV không vào trang này.
 $("#demoNote").hidden = !me.demo;
 $("#who").innerHTML = `<b>${esc(me.full_name || me.email)}</b> · ${isAdmin ? "Quản trị" : esc(deptOf(me.dept)?.name || "Nhân viên")}`;
 $("#logout").addEventListener("click", signOut);
@@ -376,7 +376,7 @@ $("#phFile").addEventListener("change", async e => {
       const blob = await shrink(f);
       if (me.demo) { PHOTOS.push(URL.createObjectURL(blob)); renderPhotos(); continue; }
       const code = ($("#u_code").value.trim() || "can").replace(/[^\w.-]+/g, "_");
-      const path = `${code}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+      const path = `u/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
       const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
       if (error) throw error;
       PHOTOS.push(sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl); renderPhotos();
@@ -519,7 +519,7 @@ window.addEventListener("message", async ev => {
   const urls = m.replace ? [] : [...(u.photos || [])];
   for (const f of m.files.slice(0, 10)) {
     if (!(f instanceof Blob) || !/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 5242880) continue;
-    const path = `${u.code}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+    const path = `u/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
     const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type, cacheControl: "31536000" });
     if (!error) urls.push(sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
   }

@@ -312,3 +312,59 @@ begin
           'approved', sref, sphone);
   return new;
 end $$;
+
+-- 15. (2026-11-27) Tách Sales và Cộng tác viên.
+--     Sales: xem mã căn, nhập, sửa, gửi hàng. CTV: chỉ xem toà, KHÔNG xem mã căn (đọc qua hàm units_for_ctv, mã căn bị thay bằng mã ẩn).
+do $$ declare c text; begin
+  for c in select conname from pg_constraint where conrelid = 'public.profiles'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%kind%' loop
+    execute format('alter table public.profiles drop constraint %I', c);
+  end loop;
+end $$;
+alter table public.profiles add constraint profiles_kind_check check (kind in ('khach','chunha','sales','ctv','nhanvien'));
+
+create or replace function public.is_ctv() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and kind = 'ctv' and role <> 'admin')
+$$;
+grant execute on function public.is_ctv() to authenticated;
+
+create or replace function public.can_edit_units() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and status = 'approved'
+                and (role = 'admin' or kind in ('sales','nhanvien')))
+$$;
+
+drop policy if exists "units_select" on public.units;
+create policy "units_select" on public.units for select using (public.is_approved() and not public.is_ctv());
+
+create or replace function public.units_for_ctv() returns setof jsonb
+language sql stable security definer set search_path = public as $$
+  select to_jsonb(u) - 'updated_by' || jsonb_build_object('code', 'Toà ' || u.tower || ' · ' || upper(substr(md5(u.id::text), 1, 5)))
+  from units u where public.is_approved() order by u.price
+$$;
+grant execute on function public.units_for_ctv() to authenticated;
+
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  first_user boolean;
+  k text := coalesce(new.raw_user_meta_data->>'kind', 'khach');
+  sref text := nullif(left(trim(coalesce(new.raw_user_meta_data->>'sales_ref','')),120),'');
+  sphone text := null;
+  sid text := new.raw_user_meta_data->>'sales_id';
+  sp profiles%rowtype;
+begin
+  select not exists(select 1 from profiles) into first_user;
+  if k = 'nhanvien' then k := 'sales'; end if;
+  if k not in ('khach','chunha','sales','ctv') then k := 'khach'; end if;
+  if sid ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select * into sp from profiles where id = sid::uuid and (kind in ('sales','ctv','nhanvien') or role = 'admin');
+    if found then sref := left(coalesce(nullif(sp.full_name,''), 'Sales'), 120); sphone := sp.phone; end if;
+  end if;
+  insert into profiles(id, email, full_name, phone, kind, dept, role, status, sales_ref, sales_phone)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone',
+          case when first_user then 'nhanvien' else k end, null,
+          case when first_user then 'admin' else 'member' end,
+          'approved', sref, sphone);
+  return new;
+end $$;

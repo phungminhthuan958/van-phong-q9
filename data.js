@@ -25,7 +25,7 @@ export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59
 export const DIRS = ["Đông Nam","Tây Bắc","Đông Bắc","Tây Nam","Nam","Bắc","Đông","Tây"];
 export const VIEWS = ["Nội khu","Công viên 36ha","Hồ bơi","Thành phố","Sông"];
 export const ST = { ok:"Còn hàng", hold:"Đang giữ chỗ", sold:"Đã bán" };
-export const KINDS = { khach:"Khách hàng", chunha:"Chủ nhà", ctv:"Sales / CTV", nhanvien:"Nhân viên" };
+export const KINDS = { khach:"Khách hàng", chunha:"Chủ nhà", sales:"Sales", ctv:"Cộng tác viên", nhanvien:"Nhân viên" };
 export const ROLES = { member:"Thành viên", lead:"Trưởng phòng", admin:"Quản trị" };
 export const STATUSES = { pending:"Chờ duyệt", approved:"Đã duyệt", blocked:"Đã chặn" };
 
@@ -75,7 +75,7 @@ export const deptOf = id => DEPTS.find(d => d.id === id);
 // Bài đăng chuẩn: Zalo, Facebook, Video dùng chung một nội dung lấy từ giỏ hàng.
 export function postText(u, contact) {
   return [
-    `🏢 ${zoneOf(u.zone).name} · Toà ${u.tower} · Căn ${u.code}`,
+    HIDE_UNIT_CODE ? `🏢 ${zoneOf(u.zone).name} · Toà ${u.tower}` : `🏢 ${zoneOf(u.zone).name} · Toà ${u.tower} · Căn ${u.code}`,
     `📐 ${u.type} · ${u.area} m² · Tầng ${u.floor ?? "-"}`,
     `🧭 Ban công ${u.dir || "-"} · View ${u.view || "-"}`,
     `🛋️ ${u.furnish || "Bàn giao cơ bản"}`,
@@ -151,14 +151,17 @@ export function parseZalo(text){
 /* ---------- Chia sẻ căn qua Zalo / Messenger ---------- */
 // Link mở thẳng căn đó trên web (người nhận phải đăng ký tài khoản mới xem được)
 // Link do sales gửi có mã của sales (?s=...), khách đăng ký qua link sẽ tự ghi sales đó
-let SHARE_REF = "";
+let SHARE_REF = "", HIDE_UNIT_CODE = false;
 export function setShareRef(id) { SHARE_REF = id || ""; }
-export function unitLink(code) {
+// Cộng tác viên không được xem mã căn: bài đăng chỉ ghi toà, link mở căn theo mã ẩn (id)
+export function setHideCode(v) { HIDE_UNIT_CODE = !!v; }
+export const shownCode = u => HIDE_UNIT_CODE ? "Toà " + u.tower : u.code;
+export function unitLink(u) {
   const base = location.href.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
-  return base + "index.html" + (SHARE_REF ? "?s=" + encodeURIComponent(SHARE_REF) : "") + "#can=" + encodeURIComponent(code);
+  return base + "index.html" + (SHARE_REF ? "?s=" + encodeURIComponent(SHARE_REF) : "") + (HIDE_UNIT_CODE ? "#u=" + encodeURIComponent(u.id) : "#can=" + encodeURIComponent(u.code));
 }
 export function shareText(u, contact) {
-  return postText(u, contact) + "\n👉 Xem ảnh và thông tin căn: " + unitLink(u.code);
+  return postText(u, contact) + "\n👉 Xem ảnh và thông tin căn: " + unitLink(u);
 }
 const onPhone = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || matchMedia("(max-width:860px)").matches;
 export async function copyText(t) {
@@ -170,10 +173,10 @@ export async function copyText(t) {
 }
 // via: "zalo" | "messenger" | "native" | "copy"
 export async function shareUnit(u, contact, via, toast) {
-  const text = shareText(u, contact), link = unitLink(u.code);
-  if (via === "native" && navigator.share) { try { await navigator.share({ title: "Căn " + u.code, text }); } catch {} return; }
+  const text = shareText(u, contact), link = unitLink(u);
+  if (via === "native" && navigator.share) { try { await navigator.share({ title: "Căn " + shownCode(u), text }); } catch {} return; }
   if (via === "zalo" && onPhone() && navigator.share) {
-    try { await navigator.share({ title: "Căn " + u.code, text }); return; } catch (e) { if (e.name === "AbortError") return; }
+    try { await navigator.share({ title: "Căn " + shownCode(u), text }); return; } catch (e) { if (e.name === "AbortError") return; }
   }
   const ok = await copyText(text);
   const pasted = ok ? "Đã chép bài đăng kèm link." : "Trình duyệt chưa cho chép, anh bấm Chép bài đăng thử lại.";

@@ -198,22 +198,24 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef } from "./data.js?v=20261127e";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink } from "./data.js?v=20261127f";
 import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
 const SHOW = u => u.hot && u.status !== "sold";
 const IS_SAMPLE = !!me.demo;
+const HIDE_CODE = me.kind==="ctv" && me.role!=="admin";
+setHideCode(HIDE_CODE);
 // Sales/CTV gửi căn: bài đăng ghi SĐT của chính sales đó (không ghi Admin) để giữ khách cho sales.
 // Khách do sales giới thiệu: nút liên hệ trên web cũng là sales đó.
 const digits=v=>String(v||"").replace(/[^0-9]/g,"");
-const IS_SELLER = me.role!=="admin" && ["ctv","nhanvien"].includes(me.kind);
+const IS_SELLER = me.role!=="admin" && ["sales","ctv","nhanvien"].includes(me.kind);
 const SHARE_CONTACT = IS_SELLER ? { phone: digits(me.phone), facebook: CONTACT.facebook, label: "" } : { ...CONTACT, label: "Admin" };
 const VIEW_CONTACT = (me.kind==="khach" && digits(me.sales_phone)) ? { phone: digits(me.sales_phone), facebook: CONTACT.facebook, label: "Sales" + (me.sales_ref ? " " + me.sales_ref : "") } : { ...CONTACT, label: "Admin" };
 {const h=document.querySelector("#hdrContact");if(h)h.textContent=`Liên hệ ${VIEW_CONTACT.label}: ${VIEW_CONTACT.phone} (gọi hoặc Zalo)`;}
 
-if(!me.demo&&(["ctv","nhanvien"].includes(me.kind)||me.role==="admin"))setShareRef(me.id);
-let UNITS = (IS_SAMPLE ? sampleUnits().map((u,i)=>({...u,hot:i%3===0})) : (await loadUnits()) || []).filter(SHOW);
+if(!me.demo&&(["sales","ctv","nhanvien"].includes(me.kind)||me.role==="admin"))setShareRef(me.id);
+let UNITS = (IS_SAMPLE ? sampleUnits().map((u,i)=>({...u,hot:i%3===0})) : (await loadUnits(HIDE_CODE)) || []).filter(SHOW);
 
 /* ====== Giỏ hàng UI ====== */
 const $=s=>document.querySelector(s);
@@ -222,7 +224,7 @@ $("#sampleNote").hidden=!IS_SAMPLE;
   if(me.kind==="chunha"){rn.innerHTML=`Bạn cần gửi căn để bán hoặc cho thuê? Liên hệ Admin: <a href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">Zalo ${CONTACT.phone}</a> hoặc <a href="tel:${CONTACT.phone}" style="color:var(--brass)">gọi ${CONTACT.phone}</a>, kèm mã căn, giá và ảnh.`;rn.hidden=false}
   else if(me.kind==="khach"&&me.sales_ref){rn.textContent=`Sales đang làm việc với bạn: ${me.sales_ref}`;rn.hidden=false} }
 if(matchMedia("(max-width:860px)").matches)$("#hint").textContent="Kéo để xoay · chụm để phóng to";
-$("#manage").hidden=!(["nhanvien","ctv"].includes(me.kind)||me.role==="admin");
+$("#manage").hidden=!(["nhanvien","sales"].includes(me.kind)||me.role==="admin");
 $("#logout").addEventListener("click",signOut);
 const state={zone:"",type:"",status:"",sort:"price",tower:"",active:""};
 ZONES.forEach(z=>$("#fZone").insertAdjacentHTML("beforeend",`<option value="${z.id}">${z.name}</option>`));
@@ -232,7 +234,7 @@ $("#legend").hidden=true;$("#legend").innerHTML=`<span style="color:var(--muted)
 const escA=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function photosHtml(u){
   const p=u.photos||[]; if(!p.length) return "";
-  const img=(x,i)=>`<img src="${escA(x)}" alt="Ảnh căn ${escA(u.code)} số ${i+1}" loading="lazy">`;
+  const img=(x,i)=>`<img src="${escA(x)}" alt="Ảnh căn ${escA(shownCode(u))} số ${i+1}" loading="lazy">`;
   if(p.length<3) return `<div class="u-photos one" data-photos="${escA(u.code)}">${img(p[0],0)}${p.length>1?`<span class="more">+${p.length-1} ảnh</span>`:""}</div>`;
   return `<div class="u-photos" data-photos="${escA(u.code)}">${img(p[0],0)}<div class="side">${img(p[1],1)}${img(p[2],2)}${p.length>3?`<span class="more">+${p.length-3} ảnh</span>`:""}</div></div>`;
 }
@@ -242,8 +244,8 @@ function openAlbum(u,i=0){
   const p=u.photos||[]; if(!p.length) return;
   closeAlbum();
   LB={u,i,el:document.createElement("div")};
-  LB.el.className="lb"; LB.el.setAttribute("role","dialog"); LB.el.setAttribute("aria-label","Ảnh căn "+u.code);
-  LB.el.innerHTML=`<div class="lb-top"><div><b>${escA(u.code)}</b> <span class="u-zone" id="lbN"></span></div><button class="btn" id="lbX">Đóng</button></div>
+  LB.el.className="lb"; LB.el.setAttribute("role","dialog"); LB.el.setAttribute("aria-label","Ảnh căn "+shownCode(u));
+  LB.el.innerHTML=`<div class="lb-top"><div><b>${escA(shownCode(u))}</b> <span class="u-zone" id="lbN"></span></div><button class="btn" id="lbX">Đóng</button></div>
     <div class="lb-img"><img id="lbImg" alt=""></div>
     ${p.length>1?`<button class="lb-nav lb-prev" aria-label="Ảnh trước">‹</button><button class="lb-nav lb-next" aria-label="Ảnh sau">›</button>`:""}
     <div class="lb-dots">${p.length>1?p.map((x,k)=>`<img src="${escA(x)}" data-k="${k}" alt="">`).join(""):""}</div>`;
@@ -258,11 +260,11 @@ function openAlbum(u,i=0){
   LB.el.addEventListener("touchend",e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>40)goAlbum(dx<0?1:-1);x0=null});
   LB.i=i; drawAlbum(); LB.el.querySelector("#lbX").focus();
 }
-function drawAlbum(){const p=LB.u.photos;LB.el.querySelector("#lbImg").src=p[LB.i];LB.el.querySelector("#lbImg").alt=`Ảnh ${LB.i+1} căn ${LB.u.code}`;LB.el.querySelector("#lbN").textContent=`· ảnh ${LB.i+1}/${p.length}`;LB.el.querySelectorAll(".lb-dots img").forEach((d,k)=>d.classList.toggle("on",k===LB.i))}
+function drawAlbum(){const p=LB.u.photos;LB.el.querySelector("#lbImg").src=p[LB.i];LB.el.querySelector("#lbImg").alt=`Ảnh ${LB.i+1} căn ${shownCode(LB.u)}`;LB.el.querySelector("#lbN").textContent=`· ảnh ${LB.i+1}/${p.length}`;LB.el.querySelectorAll(".lb-dots img").forEach((d,k)=>d.classList.toggle("on",k===LB.i))}
 function goAlbum(d){const n=LB.u.photos.length;LB.i=(LB.i+d+n)%n;drawAlbum()}
 function closeAlbum(){if(!LB)return;LB.el.remove();LB=null;document.body.style.overflow=""}
 addEventListener("keydown",e=>{if(!LB)return;if(e.key==="Escape")closeAlbum();if(e.key==="ArrowRight")goAlbum(1);if(e.key==="ArrowLeft")goAlbum(-1)});
-function msgFor(u){return `Chào anh/chị, em quan tâm căn ${u.code} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price,u.deal)}). Anh/chị tư vấn giúp em nhé.`}
+function msgFor(u){return HIDE_CODE?`Chào anh/chị, em có khách quan tâm căn ở Toà ${u.tower} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price,u.deal)}). Link căn: ${unitLink(u)}`:`Chào anh/chị, em quan tâm căn ${u.code} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price,u.deal)}). Anh/chị tư vấn giúp em nhé.`}
 function render(){
   let rows=UNITS.filter(u=>(!state.zone||u.zone===state.zone)&&(!state.type||u.type===state.type)&&(!state.status||u.status===state.status)&&(!state.tower||u.tower===state.tower));
   const k=state.sort.replace("-",""), d=state.sort.startsWith("-")?-1:1;
@@ -273,7 +275,7 @@ function render(){
   $("#towerPill").hidden=!state.tower; $("#towerName").textContent=state.tower;
   $("#list").innerHTML=rows.length?rows.map(u=>`
     <article class="unit ${u.status==="sold"?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
-      <div class="u-top"><div><div class="u-code">${u.code}</div><div class="u-zone">${zoneOf(u.zone).name} · Toà ${u.tower}</div></div>
+      <div class="u-top"><div><div class="u-code">${shownCode(u)}</div><div class="u-zone">${zoneOf(u.zone).name} · Toà ${u.tower}</div></div>
         <div class="u-price">${u.deal==="thue"?"Cho thuê · ":""}${fmtPrice(u.price,u.deal)}</div></div>
       ${photosHtml(u)}
       <div class="u-meta"><span><b>${u.type}</b></span><span><b>${u.area}</b> m²</span><span>Tầng <b>${u.floor}</b></span>
@@ -538,32 +540,168 @@ const logoG=new THREE.Group();scene.add(logoG);
   for(let i=0;i<N;i++){const m=flat(new THREE.Mesh(new THREE.PlaneGeometry(W,H),sideM));m.position.y=Y0+i*STEP;logoG.add(m)}
   const face=flat(new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:front,alphaTest:.5})));face.position.y=Y0+N*STEP;logoG.add(face);
 }
-/* ====== Quầy tiếp khách quanh logo: ai đang đăng nhập thì có một người đại diện đứng quanh bục ======
+/* ====== Người 3D: có tóc, mặt, tay chân; biết đứng, đi, ngồi gõ máy ======
+   Người đang làm việc thì ngồi ghế trước máy; xong việc đứng dậy đi lại trong văn phòng rồi quay về chỗ. */
+const HG={
+  limb:new THREE.CapsuleGeometry(.055,.3,4,10), arm:new THREE.CapsuleGeometry(.045,.22,4,8),
+  torso:new THREE.CapsuleGeometry(.15,.3,6,14), hip:new THREE.CapsuleGeometry(.13,.08,4,12),
+  head:new THREE.SphereGeometry(.12,20,16), hair:new THREE.SphereGeometry(.128,20,12,0,Math.PI*2,0,Math.PI*.55),
+  neck:new THREE.CylinderGeometry(.045,.05,.08,10), hand:new THREE.SphereGeometry(.04,10,8),
+  eye:new THREE.SphereGeometry(.014,8,6), shoe:new THREE.BoxGeometry(.1,.06,.2), collar:new THREE.TorusGeometry(.085,.02,6,16)
+};
+const SKINS=[0xf1c9a5,0xe0b18c,0xc9956d,0xf5d6bb],HAIRS=[0x1d1712,0x2b1f17,0x3b2a1e,0x111111,0x5a3d29];
+const PANTS=[0x2a3036,0x1f2a3a,0x3a3a40,0x26303a],matCache={};
+const HM=(c,o)=>matCache[c+":"+(o||"")]||(matCache[c+":"+(o||"")]=M(c,o==="cloth"?{roughness:.85}:o==="hair"?{roughness:.6}:{roughness:.55}));
+let humanSeed=7;const hr=()=>{humanSeed=(humanSeed*16807)%2147483647;return (humanSeed-1)/2147483646};
+const pick=a=>a[Math.floor(hr()*a.length)];
+function makeHuman(shirt,opt={}){
+  const g=new THREE.Group(),skin=HM(opt.skin??pick(SKINS)),cloth=HM(shirt,"cloth"),pants=HM(opt.pants??pick(PANTS),"cloth"),hairM=HM(opt.hair??pick(HAIRS),"hair"),shoeM=HM(0x15181b);
+  const add=(geo,mat,x,y,z,parent=g)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m};
+  const body=new THREE.Group();g.add(body);
+  add(HG.hip,pants,0,.9,0,body).rotation.z=Math.PI/2;
+  const torso=add(HG.torso,cloth,0,1.2,0,body);torso.scale.set(1,1,.72);
+  add(HG.collar,HM(0xf2f2f2,"cloth"),0,1.42,.01,body).rotation.x=Math.PI/2;
+  add(HG.neck,skin,0,1.47,0,body);
+  const headG=new THREE.Group();headG.position.set(0,1.6,0);body.add(headG);
+  add(HG.head,skin,0,0,0,headG);
+  const hair=add(HG.hair,hairM,0,.012,-.008,headG);hair.rotation.x=-.25;
+  if(opt.long){const back=add(new THREE.CapsuleGeometry(.1,.14,4,10),hairM,0,-.1,-.06,headG);back.scale.set(1.05,1,.6)}
+  [-.042,.042].forEach(x=>add(HG.eye,HM(0x1a1a1a),x,.015,.112,headG));
+  const legs=[],arms=[];
+  [-.085,.085].forEach(x=>{
+    const hipJ=new THREE.Group();hipJ.position.set(x,.9,0);body.add(hipJ);
+    add(HG.limb,pants,0,-.2,0,hipJ);
+    const knee=new THREE.Group();knee.position.y=-.42;hipJ.add(knee);
+    add(HG.limb,pants,0,-.2,0,knee);add(HG.shoe,shoeM,0,-.42,.04,knee);
+    legs.push({hipJ,knee});
+  });
+  [-.2,.2].forEach(x=>{
+    const sh=new THREE.Group();sh.position.set(x,1.36,0);sh.rotation.z=x<0?-.08:.08;body.add(sh);
+    add(HG.arm,cloth,0,-.15,0,sh);
+    const el=new THREE.Group();el.position.y=-.3;sh.add(el);
+    add(HG.arm,skin,0,-.14,0,el);add(HG.hand,skin,0,-.3,0,el);
+    arms.push({sh,el});
+  });
+  g.userData.rig={body,legs,arms,headG,phase:hr()*6};
+  return g;
+}
+function poseHuman(h,mode,t){
+  const {body,legs,arms,headG,phase}=h.userData.rig,p=t+phase;
+  if(mode==="sit"){
+    body.position.y=-.36;
+    legs.forEach(l=>{l.hipJ.rotation.x=-Math.PI/2;l.knee.rotation.x=Math.PI/2});
+    arms.forEach((a,i)=>{a.sh.rotation.x=-.75;a.el.rotation.x=-.85+Math.sin(p*9+i*1.7)*.07});
+    headG.rotation.x=.12;headG.rotation.y=Math.sin(p*.4)*.15;
+  }else if(mode==="walk"){
+    const s=Math.sin(p*7);body.position.y=Math.abs(Math.cos(p*7))*.025;
+    legs[0].hipJ.rotation.x=s*.5;legs[1].hipJ.rotation.x=-s*.5;
+    legs[0].knee.rotation.x=Math.max(0,-s)*.6;legs[1].knee.rotation.x=Math.max(0,s)*.6;
+    arms[0].sh.rotation.x=-s*.45;arms[1].sh.rotation.x=s*.45;arms.forEach(a=>a.el.rotation.x=-.25);
+    headG.rotation.x=0;headG.rotation.y=0;
+  }else{ // đứng
+    body.position.y=Math.sin(p*1.6)*.006;
+    legs.forEach(l=>{l.hipJ.rotation.x=0;l.knee.rotation.x=0});
+    arms.forEach((a,i)=>{a.sh.rotation.x=Math.sin(p*.8+i)*.05;a.el.rotation.x=-.12});
+    headG.rotation.x=0;headG.rotation.y=Math.sin(p*.5)*.25;
+  }
+}
+/* Đường đi trong văn phòng: các điểm quanh thảm (né bục logo), sảnh trước, lối vào các phòng ban */
+const WALK_PTS=[];
+for(let i=0;i<12;i++){const a=i/12*Math.PI*2;WALK_PTS.push([Math.cos(a)*4.4,Math.sin(a)*4.4])}
+[[-5.6,6.2],[5.6,6.2],[0,7.4],[-2.2,7.6],[2.2,7.6],[-5.8,-6],[5.8,-6],[-5.8,0],[5.8,0],[0,-5.4]].forEach(p=>WALK_PTS.push(p));
+const segClear=(a,b)=>{ // đoạn a→b không cắt qua bục logo (bán kính 3.1)
+  const dx=b[0]-a[0],dz=b[1]-a[1],L=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dz)/L));
+  const x=a[0]+dx*t,z=a[1]+dz*t;return x*x+z*z>3.1*3.1};
+function nextWalkPt(from){for(let k=0;k<20;k++){const p=pick(WALK_PTS);if(Math.hypot(p[0]-from[0],p[1]-from[1])>1.5&&segClear(from,p))return p}
+  // không có đường thẳng: đi vòng theo điểm gần nhất trên vòng thảm
+  let best=WALK_PTS[0],bd=1e9;WALK_PTS.slice(0,12).forEach(p=>{const d=Math.hypot(p[0]-from[0],p[1]-from[1]);if(d<bd&&segClear(from,p)){bd=d;best=p}});return best}
+const AGENTS=[];
+// agent: {h, mode:"sit"|"walk"|"stand", seat:{x,z,rot}|null, route:[[x,z]...], timer, exit:[[x,z]...] (đường từ ghế ra lối đi)}
+function moveAgent(a,dt){
+  const tgt=a.route[0],o=a.h.position,dx=tgt[0]-o.x,dz=tgt[1]-o.z,d=Math.hypot(dx,dz),sp=a.speed*dt;
+  const want=Math.atan2(dx,dz);let dr=want-a.h.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));a.h.rotation.y+=dr*Math.min(1,dt*8);
+  if(d<=sp){o.x=tgt[0];o.z=tgt[1];a.route.shift();return true}
+  o.x+=dx/d*sp;o.z+=dz/d*sp;return false;
+}
+// Đường từ from tới to, đi vòng quanh thảm nếu đường thẳng cắt qua bục logo
+function routeTo(from,to){
+  if(segClear(from,to))return [to];
+  const ring=WALK_PTS.slice(0,12),ang=p=>Math.atan2(p[1],p[0]);
+  let i=0,bd=1e9;ring.forEach((p,k)=>{const d=Math.hypot(p[0]-from[0],p[1]-from[1]);if(d<bd){bd=d;i=k}});
+  const dir=Math.sin(ang(to)-ang(ring[i]))>0?1:-1,out=[];
+  for(let n=0;n<12;n++){const p=ring[(i+n*dir+12)%12];out.push(p);if(segClear(p,to))break}
+  out.push(to);return out;
+}
+function wander(from,n){const out=[];let last=from;for(let i=0;i<n;i++){const p=nextWalkPt(last);out.push(...routeTo(last,p));last=p}return {pts:out,last}}
+function updateAgents(dt,t){
+  AGENTS.forEach(a=>{
+    if(!a.h.parent)return;
+    if(a.mode==="idle"){poseHuman(a.h,"stand",t);return}
+    if(a.mode==="sit"||a.mode==="stand"){
+      a.timer-=dt;
+      if(a.timer<=0){
+        a.mode="walk";a.h.position.y=0;
+        if(a.seat){ // đứng dậy: ra cửa phòng ban, đi dạo 2-4 điểm, quay về đúng ghế
+          const ex=a.exit,w=wander(ex[ex.length-1],2+Math.floor(hr()*3));
+          a.route=[...ex,...w.pts,...routeTo(w.last,ex[ex.length-1]),...[...ex].reverse().slice(1),[a.seat.x,a.seat.z]];
+        }else{const w=wander([a.h.position.x,a.h.position.z],2+Math.floor(hr()*3));a.route=w.pts}
+      }
+    }
+    if(a.mode==="walk"){
+      if(!a.route.length){
+        if(a.seat){a.mode="sit";a.h.position.set(a.seat.x,0,a.seat.z);a.h.rotation.y=a.seat.rot;a.timer=20+hr()*40}
+        else{a.mode="stand";a.timer=3+hr()*6}
+      }else moveAgent(a,dt);
+    }
+    poseHuman(a.h,a.mode,t);
+  });
+}
+/* ====== Quầy tiếp khách quanh logo: ai đang đăng nhập thì có một người đại diện ======
+   Khách và chủ nhà đứng ở quầy tiếp khách quanh bục logo. Sales/CTV, nhân viên và quản trị đi lại trong văn phòng.
    Dùng Realtime Presence (không lưu gì vào cơ sở dữ liệu). Gói tin chỉ có id + loại tài khoản, KHÔNG có tên/SĐT/email.
    Quản trị thấy tên (tự tra trong profiles), người khác chỉ thấy tên của chính mình. */
 const guestG=new THREE.Group();scene.add(guestG);
-const KIND={khach:{t:"Khách",c:0x4aa3df,css:"#8fd0ff"},chunha:{t:"Chủ nhà",c:0xc77dd8,css:"#e6b8f0"},ctv:{t:"Sales",c:0x4cbf86,css:"#9be8bf"},nhanvien:{t:"Nhân viên",c:0xd6a75c,css:"#f0cf98"}};
+const KIND={khach:{t:"Khách",c:0x4aa3df,css:"#8fd0ff"},chunha:{t:"Chủ nhà",c:0xc77dd8,css:"#e6b8f0"},sales:{t:"Sales",c:0x4cbf86,css:"#9be8bf"},ctv:{t:"CTV",c:0x2fb3a8,css:"#8fe3dc"},nhanvien:{t:"Nhân viên",c:0xd6a75c,css:"#f0cf98"}};
 const givenName=p=>((p?.full_name||"").trim().split(/\s+/).pop()||"");
-let NAMES={};
+const isWalker=p=>p.role==="admin"||["sales","ctv","nhanvien"].includes(p.kind);
+let NAMES={};const guestMap=new Map();let moreLbl=null;
+function guestText(p){
+  const kd=KIND[p.kind]||KIND.khach,mine=p.id===me.id;
+  const role=p.role==="admin"?"Quản trị":p.kind==="nhanvien"?(DEPTS.find(d=>d.id===p.dept)?.name||kd.t):kd.t;
+  const nm=mine?givenName(me):(me.role==="admin"?givenName(NAMES[p.id]):"");
+  return (mine?"Bạn":"")+(nm?(mine?" · ":"")+nm:"")+((mine||nm)?" · ":"")+role;
+}
 function drawGuests(list){
-  guestG.clear();
-  list=[...list].sort((a,b)=>(b.id===me.id)-(a.id===me.id));
-  const R=[3.35,4.25],PER=[18,24],max=PER[0]+PER[1],shown=list.slice(0,max);
-  shown.forEach((p,i)=>{
-    const ring=i<PER[0]?0:1,k=ring?i-PER[0]:i,n=Math.min(ring?shown.length-PER[0]:shown.length,PER[ring]);
-    const step=n<6?Math.PI/5:Math.PI*2/Math.max(n,PER[ring]),a=-Math.PI/2+(k-(n-1)/2)*step;
-    const x=Math.cos(a)*R[ring],z=Math.sin(a)*R[ring],kd=KIND[p.kind]||KIND.khach,mine=p.id===me.id;
-    const g=new THREE.Group();g.position.set(x,0,z);g.lookAt(0,0,0);guestG.add(g);
-    const body=new THREE.Mesh(new THREE.CylinderGeometry(.16,.2,.62,16),M(kd.c,{roughness:.7}));body.position.y=.5;body.castShadow=true;g.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.14,16,12),M(0xe2c4a6,{roughness:.8}));head.position.y=.96;head.castShadow=true;g.add(head);
-    if(mine){const r=new THREE.Mesh(new THREE.TorusGeometry(.32,.03,8,32),new THREE.MeshBasicMaterial({color:0xd6a75c}));r.rotation.x=Math.PI/2;r.position.y=.03;g.add(r)}
-    const role=p.role==="admin"?"Quản trị":p.kind==="nhanvien"?(DEPTS.find(d=>d.id===p.dept)?.name||kd.t):kd.t;
-    const nm=mine?givenName(me):(me.role==="admin"?givenName(NAMES[p.id]):"");
-    const l=label((mine?"Bạn":"")+(nm?(mine?" · ":"")+nm:"")+((mine||nm)?" · ":"")+role,mine?"#f0cf98":kd.css,true);
-    l.position.set(x,1.4,z);l.scale.multiplyScalar(mine?.75:.6);guestG.add(l);
+  const ids=new Set(list.map(p=>p.id));
+  for(const [id,o] of guestMap)if(!ids.has(id)){guestG.remove(o.h);const k=AGENTS.indexOf(o.agent);if(k>=0)AGENTS.splice(k,1);guestMap.delete(id)}
+  list.forEach(p=>{
+    const txt=guestText(p),o=guestMap.get(p.id);
+    if(o&&o.txt===txt)return;
+    if(o){o.h.remove(o.lbl)}
+    const kd=KIND[p.kind]||KIND.khach,mine=p.id===me.id;
+    let h=o?.h;
+    if(!h){
+      h=makeHuman(p.role==="admin"?0x2b2f36:kd.c,{long:hr()<.45});guestG.add(h);
+      if(mine){const r=new THREE.Mesh(new THREE.TorusGeometry(.34,.03,8,32),new THREE.MeshBasicMaterial({color:0xd6a75c}));r.rotation.x=Math.PI/2;r.position.y=.03;h.add(r)}
+      const walk=isWalker(p),start=walk?pick(WALK_PTS.slice(12)):[0,0];
+      h.position.set(start[0],0,start[1]);
+      const agent={h,mode:walk?"stand":"idle",timer:hr()*2,seat:null,route:[],speed:.85+hr()*.3};AGENTS.push(agent);
+      guestMap.set(p.id,{h,agent,p});
+    }
+    const lbl=label(txt,mine?"#f0cf98":kd.css,true);lbl.position.y=2.02;lbl.scale.multiplyScalar(mine?.75:.6);h.add(lbl);
+    Object.assign(guestMap.get(p.id),{lbl,txt});
   });
-  if(list.length>max){const l=label(`+${list.length-max} người nữa`,"#e8efe9",true);l.position.set(0,1.6,-4.6);l.scale.multiplyScalar(.45);guestG.add(l)}
-  const c=document.querySelector("#onlineCount");if(c)c.textContent=list.length;
+  // quầy tiếp khách: khách và chủ nhà đứng thành vòng ở nửa sau bục, mình đứng giữa
+  const rec=[...guestMap.values()].filter(o=>!isWalker(o.p)).sort((a,b)=>(b.p.id===me.id)-(a.p.id===me.id));
+  const R=[3.35,4.25],PER=[18,24],max=PER[0]+PER[1];
+  rec.forEach((o,i)=>{
+    o.h.visible=i<max;if(i>=max)return;
+    const ring=i<PER[0]?0:1,k=ring?i-PER[0]:i,n=Math.min(ring?rec.length-PER[0]:rec.length,PER[ring]);
+    const step=n<6?Math.PI/5:Math.PI*2/Math.max(n,PER[ring]),ang=-Math.PI/2+(k-(n-1)/2)*step;
+    o.h.position.set(Math.cos(ang)*R[ring],0,Math.sin(ang)*R[ring]);o.h.lookAt(0,0,0);
+  });
+  if(moreLbl){guestG.remove(moreLbl);moreLbl=null}
+  if(rec.length>max){moreLbl=label(`+${rec.length-max} người nữa`,"#e8efe9",true);moreLbl.position.set(0,1.6,-4.6);moreLbl.scale.multiplyScalar(.45);guestG.add(moreLbl)}
 }
 const myCard={id:me.id,kind:me.kind,dept:me.kind==="nhanvien"?me.dept:null,role:me.role==="admin"?"admin":"member"};
 if(me.demo){me.id=myCard.id="demo";drawGuests([myCard,{id:"a",kind:"khach"},{id:"b",kind:"khach"},{id:"c",kind:"ctv"},{id:"d",kind:"ctv"},{id:"e",kind:"khach"},{id:"f",kind:"nhanvien",dept:"zalo"}])}
@@ -592,8 +730,6 @@ function desk(x,z,rot=0,s=1){
 }
 /* Khu phòng ban */
 const deptMeshes=[];
-function person(x,z,color){cyl(.17,.2,.55,M(color,{roughness:.8}),x,.8,z,16);
-  const h=new THREE.Mesh(new THREE.SphereGeometry(.14,16,12),M(0xe2c4a6,{roughness:.8}));h.position.set(x,1.22,z);h.castShadow=true;scene.add(h)}
 DEPTS.forEach(d=>{
   const [x,z]=d.pos,[w,dz]=d.size,face=x<0?1:-1;
   const tile=new THREE.Mesh(new THREE.PlaneGeometry(w,dz),new THREE.MeshStandardMaterial({color:d.color,transparent:true,opacity:.16,roughness:.8}));
@@ -608,7 +744,12 @@ DEPTS.forEach(d=>{
   d.roles.forEach((r,i)=>{
     const zp=z+(i-(n-1)/2)*gap,dx=x-face*1.0;
     desk(dx,zp,face*Math.PI/2,.6);
-    person(dx+face*.6,zp,d.color);
+    { const seat={x:dx+face*.6,z:zp,rot:-face*Math.PI/2},xin=x+face*(w/2-.55),zDoor=z+(zp>=z?1:-1)*(dz/2-.45),xout=x+face*(w/2+.7);
+      const h=makeHuman(d.color,{long:hr()<.45});scene.add(h);
+      const working=hr()<.65,agent={h,mode:working?"sit":"stand",timer:working?5+hr()*40:hr()*4,seat,speed:.8+hr()*.35,route:[],exit:[[xin,zp],[xin,zDoor],[xout,zDoor]]};
+      if(working){h.position.set(seat.x,0,seat.z);h.rotation.y=seat.rot}
+      else{const p=pick(WALK_PTS);h.position.set(p[0],0,p[1]);agent.mode="walk";agent.route=[...routeTo(p,agent.exit[2]),agent.exit[1],agent.exit[0],[seat.x,seat.z]]}
+      AGENTS.push(agent); }
     const lb=label(r.t,hex(d.color),true);lb.position.set(dx,2.05,zp);lb.scale.multiplyScalar(.7);scene.add(lb);
   });
   if(d.id==="video"){
@@ -636,8 +777,8 @@ document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",(
 $("#spin").addEventListener("click",e=>{controls.autoRotate=!controls.autoRotate;controls.autoRotateSpeed=.8;e.currentTarget.setAttribute("aria-pressed",controls.autoRotate);e.currentTarget.querySelector("span").textContent="Tự xoay phòng: "+(controls.autoRotate?"bật":"tắt")});
 /* Mở thẳng một căn từ link chia sẻ: index.html#can=S9.03-1205 */
 function openFromHash(){
-  const m=location.hash.match(/^#can=(.+)$/); if(!m) return;
-  const u=UNITS.find(x=>x.code===decodeURIComponent(m[1]));
+  const m=location.hash.match(/^#(can|u)=(.+)$/); if(!m) return;
+  const v=decodeURIComponent(m[2]),u=UNITS.find(x=>m[1]==="u"?String(x.id)===v:x.code===v);
   if(!u){toast("Căn này không còn trong giỏ hàng");return}
   showTab("cart");state.zone="";state.type="";state.status="";state.tower="";["#fZone","#fType","#fStatus"].forEach(s=>$(s).value="");
   state.active=u.code;render();
@@ -648,13 +789,14 @@ addEventListener("hashchange",openFromHash);
 /* Đồng bộ với trang Quản lý: có ai thêm/sửa/xoá căn là giỏ hàng tự cập nhật */
 let reloadT;
 async function reloadUnits(){
-  const d=await loadUnits(); if(!d) return;
+  const d=await loadUnits(HIDE_CODE); if(!d) return;
   UNITS=d.filter(SHOW); render();
   if(state.active&&!UNITS.some(u=>u.code===state.active)){state.active="";highlight()}
 }
 if(sb&&!me.demo){
   sb.channel("units-live").on("postgres_changes",{event:"*",schema:"public",table:"units"},()=>{clearTimeout(reloadT);reloadT=setTimeout(reloadUnits,400)}).subscribe();
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)reloadUnits()});
+  if(HIDE_CODE)setInterval(()=>{if(!document.hidden)reloadUnits()},60000); // CTV không nhận realtime trực tiếp từ bảng căn
 }
 
 function highlight(){
@@ -703,6 +845,7 @@ let lastT=performance.now();
     camera.position.lerpVectors(tween.from,tween.to,e);controls.target.lerpVectors(tween.ft,tween.tt,e);if(tween.k>=1)tween=null}
   if(mark.visible){const k=1+.3*Math.sin(performance.now()/180);markBox.scale.set(k,1,k)}
   if(!reduce){logoG.rotation.y=now/9000}
+  updateAgents(reduce?0:dt,now/1000);
   controls.update();renderer.render(scene,camera)})();
 /* Khách và cộng tác viên chỉ xem giỏ hàng, không xem thông tin phòng ban nội bộ */
 if(!(me.kind==="nhanvien"||me.role==="admin")){document.querySelector('[data-tab="dept"]').hidden=true;showTab("cart")}
