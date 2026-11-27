@@ -142,7 +142,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
     <form class="panel" id="unitForm" hidden>
       <h3 id="formTitle">Thêm căn</h3>
       <div class="grid">
-        <label class="f">Mã căn<input id="u_code" required placeholder="S9.03-1205"></label>
+        <label class="f">Mã căn<input id="u_code" required placeholder="S9.03-1205 · MCP-A-1207 · LB-D1-1508"></label>
         <label class="f">Thuê / bán<select id="u_deal"><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
         <label class="f">Phân khu<select id="u_zone"></select></label>
         <label class="f">Toà<select id="u_tower"></select></label>
@@ -225,7 +225,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList } from "./data.js?v=20261127l";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList } from "./data.js?v=20261127m";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
