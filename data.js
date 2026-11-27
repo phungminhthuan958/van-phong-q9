@@ -211,7 +211,7 @@ function parseRest(raw, b, rent, tower, zone, num){
     const dir = dm ? DIR_WORDS.find(([k])=>k===dm[1])[1] : "";
     const vm = b.match(/view\s*:?\s*(công viên|hồ bơi|nội khu|ngoại khu|sông|thành phố|landmark|trực diện[^,.\n]*)/);
     const view = vm ? vm[1].replace(/^./, c => c.toUpperCase()) : "";
-    const furnish = /full|nội thất đầy đủ|ntđđ/.test(b) ? "Full nội thất" : "Bàn giao cơ bản";
+    const furnish = /full|nội thất đầy đủ|ntđđ/.test(b) ? "Full nội thất" : /ntcb|nội thất cơ bản/.test(b) ? "Nội thất cơ bản" : /nhà trống|trống/.test(b) ? "Nhà trống" : "Bàn giao cơ bản";
     const status = /đã cho thuê|đã thuê/.test(b) ? "rented" : /đã bán|đã cọc|đã chốt|out\b/.test(b) ? (/cọc/.test(b) ? "hold" : "sold") : "ok";
     const phone = (raw.match(/(?:\+?84|0)[\s.]?\d{2,3}[\s.]?\d{3}[\s.]?\d{3,4}/) || [""])[0].replace(/[\s.]/g,"");
     const code = !tower ? "" : num ? `${tower}.${String(num).padStart(4,"0").slice(0,2)}.${String(num).padStart(4,"0").slice(2)}` : `${tower}.??.??`;

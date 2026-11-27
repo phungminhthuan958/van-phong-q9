@@ -162,7 +162,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
         <label class="f">Tầng<input id="u_floor" type="number" min="1" max="60"></label>
         <label class="f">Hướng ban công<select id="u_dir"></select></label>
         <label class="f">View<select id="u_view"></select></label>
-        <label class="f">Nội thất<select id="u_furnish"><option>Bàn giao cơ bản</option><option>Full nội thất</option></select></label>
+        <label class="f">Nội thất<input id="u_furnish" list="furnishList" autocomplete="off" placeholder="Tự ghi, vd: Full nội thất, NTCB, nhà trống..."><datalist id="furnishList"><option value="Bàn giao cơ bản"><option value="Nội thất cơ bản"><option value="Full nội thất"><option value="Nhà trống"></datalist></label>
         <label class="f">Mức giá<select id="u_tier"><option value="">Tự xếp</option><option value="tot">Giá tốt</option><option value="thitruong">Giá thị trường</option><option value="cao">Giá cao</option></select></label>
         <label class="f wide">Ghi chú (khách cũng thấy)<input id="u_note"></label>
       </div>
@@ -234,7 +234,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower, parseCode, parseOne } from "./data.js?v=20261127p";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower, parseCode, parseOne } from "./data.js?v=20261127q";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -320,7 +320,7 @@ $("#u_quick").addEventListener("input", () => { clearTimeout(quickT); quickT = s
   if (setSel("#u_type", r.type)) got.push(r.type);
   if (setSel("#u_dir", r.dir)) got.push("hướng " + r.dir);
   if (setSel("#u_view", r.view)) got.push("view " + r.view);
-  if (r.furnish === "Full nội thất") { $("#u_furnish").value = r.furnish; got.push("full nội thất"); }
+  if (r.furnish && (r.furnish !== "Bàn giao cơ bản" || !$("#u_furnish").value)) { $("#u_furnish").value = r.furnish; got.push(r.furnish.toLowerCase()); }
   if (r.statusKey && r.statusKey !== "ok") { $("#u_status").value = r.statusKey; got.push(ST[r.statusKey]); }
   if (r.holder && $("#p_holder") && !$("#privGrid").hidden && !$("#p_holder").value) { $("#p_holder").value = r.holder; got.push("SĐT người nắm"); }
   $("#quickNote").textContent = got.length ? "✓ Đã điền: " + got.join(", ") + ". Anh kiểm tra lại rồi bấm Lưu." : "Chưa đọc được, anh điền tay giúp em.";
@@ -392,7 +392,7 @@ function openForm(u){
   editing = u || null; $("#formTitle").textContent = u ? `Sửa căn ${shownCode(u)}` : "Thêm căn";
   { const lab=$("#u_code").closest("label")||$("#u_code").parentElement; lab.hidden = !!(HIDE && u); $("#u_code").required = !(HIDE && u); }
   F.forEach(k => { if (k!=="tower") $("#u_"+k).value = u ? (u[k] ?? "") : (k==="status"?"ok":k==="zone"?ZONES[0].id:""); });
-  if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value="Bàn giao cơ bản"; }
+  if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value=""; }
   PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
   $("#u_quick").value = ""; $("#quickNote").textContent = ""; $("#u_quick").closest(".quick").hidden = !!u;
   $("#u_pass").value = (SEE_PASS && u && PASS[u.id]) || ""; $("#u_pass").placeholder = (!SEE_PASS && u?.has_pass) ? "Căn đã có pass (bạn không xem được). Nhập pass mới để thay" : "Bỏ trống nếu chưa có pass";
@@ -400,7 +400,7 @@ function openForm(u){
   $("#privNote").textContent = isAdmin ? "Thông tin người đăng, người nắm hàng, chủ nhà bên dưới CHỈ QUẢN TRỊ xem được. Nhân viên, cộng tác viên và khách chỉ thấy \"Liên hệ Admin\"." : (u ? "Thông tin người đăng, người nắm hàng, chủ nhà của căn này chỉ quản trị xem và sửa được." : "Bạn có thể ghi người đăng, người nắm hàng, chủ nhà bên dưới. Sau khi lưu, chỉ quản trị xem được, kể cả bạn cũng không xem lại được.");
   PHOTOS = [...(u?.photos || [])]; renderPhotos();
   // Căn nhập từ nhóm Zalo có thể ghi loại căn, hướng, view, nội thất khác danh sách sẵn: thêm vào lựa chọn để không bị mất khi sửa
-  ["type","dir","view","furnish"].forEach(k => { const v = u?.[k], el = $("#u_"+k); if (v && ![...el.options].some(o=>o.value===v)) { el.insertAdjacentHTML("beforeend", opt(v,v)); el.value = v; } });
+  ["type","dir","view"].forEach(k => { const v = u?.[k], el = $("#u_"+k); if (v && ![...el.options].some(o=>o.value===v)) { el.insertAdjacentHTML("beforeend", opt(v,v)); el.value = v; } });
   $("#u_hot").checked = !!u?.hot; if (!u) $("#u_deal").value = "ban"; setPriceLbl();
   fillTowers(u?.tower); $("#unitForm").hidden=false; (u ? $("#u_code") : $("#u_quick")).focus();
 }
@@ -455,7 +455,7 @@ $("#unitForm").addEventListener("submit", async e => {
   e.preventDefault();
   const row = {}; F.forEach(k => row[k] = $("#u_"+k).value.trim());
   if ($("#phBusy").hidden === false) return toast("Đợi ảnh tải lên xong rồi bấm Lưu");
-  row.photos = PHOTOS; row.hot = $("#u_hot").checked;
+  row.photos = PHOTOS; row.hot = $("#u_hot").checked; row.furnish = row.furnish || "Bàn giao cơ bản";
   row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null; row.tier=row.tier||null;
   const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
   if (!(HIDE && editing)) { row.code = parseCode(row.code)?.code || normCode(row.code); if (!codeOK(row.code)) return toast("Mã căn chưa đúng mẫu TOÀ.TẦNG.CĂN, ví dụ S1.02.03.04, BS10.12.32.09, GH1.21.32, E1.22.11"); }
