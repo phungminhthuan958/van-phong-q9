@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Văn phòng 3D Grand Park</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Lexend:wght@500;600;700&display=swap">
+<style>
+[hidden]{display:none!important}
+html,body{margin:0}
+*{box-sizing:border-box}
+/* Layout: one-screen app. 3D sales office (left / top on phone) + cart panel (right / below). Single committed dark look: night-time showroom glass, warm brass light. */
+:root{
+  --ink:#0f1a1f;        /* showroom night */
+  --panel:#16242b;      /* cart surface */
+  --line:#284049;       /* hairlines */
+  --text:#e8efe9;       /* primary text */
+  --muted:#93a9a6;      /* secondary text */
+  --brass:#d6a75c;      /* accent: brass lamp light */
+  --ok:#5fc29a; --hold:#e2b24a; --sold:#d36a5c;
+  --display:"Lexend",system-ui,sans-serif;
+  --body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--text);font-family:var(--body);font-size:14px;overflow:hidden}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:auto minmax(0,1fr)}
+header{grid-column:1/-1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+.brand{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:.01em;text-wrap:balance}
+.brand small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted);letter-spacing:0}
+.views{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;color:inherit;cursor:pointer}
+.chip{background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px}
+.chip:hover{border-color:var(--brass)}
+.chip[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:var(--ink);font-weight:600}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+.stage{position:relative;min-width:0;min-height:0}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hint{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:14px;font-size:12px;color:var(--muted);
+  background:rgba(15,26,31,.75);padding:6px 10px;border-radius:6px;pointer-events:none}
+.tip{position:absolute;pointer-events:none;background:var(--text);color:var(--ink);font-size:12px;font-weight:600;padding:5px 9px;border-radius:6px;transform:translate(-50%,-130%);white-space:nowrap}
+.legend{position:absolute;right:14px;top:14px;display:grid;gap:4px;font-size:12px;background:rgba(15,26,31,.75);padding:8px 10px;border-radius:8px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+aside{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.cart-head{padding:16px 16px 10px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.cart-head h2{margin:0;font-family:var(--display);font-size:18px;font-weight:600;display:flex;align-items:baseline;gap:8px}
+.cart-head h2 b{font-size:13px;font-weight:500;color:var(--muted);font-family:var(--body)}
+.sample{font-size:12px;color:var(--hold);background:rgba(226,178,74,.1);border:1px solid rgba(226,178,74,.35);border-radius:6px;padding:6px 8px}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+select{font:inherit;color:var(--text);background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:100%}
+label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tower-pill{display:flex;align-items:center;gap:8px;font-size:13px}
+.tower-pill[hidden]{display:none}
+.tower-pill button{background:none;border:none;color:var(--brass);text-decoration:underline;padding:0}
+
+.list{overflow:auto;padding:8px 16px 16px;display:grid;gap:8px;align-content:start}
+.unit{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;background:var(--ink)}
+.unit.active{border-color:var(--brass)}
+.u-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.u-code{font-family:var(--display);font-weight:600;font-size:15px}
+.u-zone{font-size:12px;color:var(--muted)}
+.u-price{font-weight:600;font-size:16px;color:var(--brass);font-variant-numeric:tabular-nums;white-space:nowrap}
+.u-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.u-meta b{color:var(--text);font-weight:500}
+.st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.st.ok{color:var(--ok)} .st.hold{color:var(--hold)} .st.sold{color:var(--sold)}
+.u-act{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border-radius:6px;padding:6px 10px;font-size:12.5px;border:1px solid var(--line);background:transparent;text-decoration:none;color:var(--text);display:inline-flex;align-items:center}
+.btn.zalo{background:#0068ff;border-color:#0068ff;color:#fff;font-weight:600}
+.btn.fb{background:#1b4fa8;border-color:#1b4fa8;color:#fff;font-weight:600}
+.btn:hover{filter:brightness(1.12)}
+.unit.sold-out{opacity:.55}
+.empty{color:var(--muted);padding:24px 0;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--ink);padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px}
+
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:12px 8px;font-family:var(--display);font-weight:600;font-size:14px;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--brass)}
+.pane{display:flex;flex-direction:column;min-height:0;flex:1}
+.pane[hidden]{display:none}
+.flow{font-size:12.5px;color:var(--muted);line-height:1.6;padding:12px 16px;border-bottom:1px solid var(--line)}
+.flow b{color:var(--text);font-weight:500}
+.dept{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;background:var(--ink)}
+.dept.active{border-color:var(--brass)}
+.d-top{display:flex;align-items:center;gap:8px}
+.d-top i{width:12px;height:12px;border-radius:3px;flex:none}
+.d-name{font-family:var(--display);font-weight:600;font-size:15px}
+.d-desc{font-size:12.5px;color:var(--muted);margin:0}
+.roles{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.roles li{font-size:12.5px;display:grid;gap:1px;padding-left:10px;border-left:2px solid var(--line)}
+.roles b{font-weight:600}
+.roles span{color:var(--muted)}
+@media (max-width:860px){
+  body{overflow:auto}
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 52vh auto;height:auto;min-height:100%}
+  aside{border-left:none;border-top:1px solid var(--line)}
+  .list{overflow:visible}
+  .views{margin-left:0}
+  .legend{display:none}
+  /* sa bàn dính trên đầu màn hình, kéo giỏ hàng bên dưới vẫn thấy căn sáng lên */
+  .stage{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+  .app{grid-template-rows:auto 44vh auto}
+  .hint{font-size:11px;bottom:8px;right:max(16px,env(safe-area-inset-right,0px))}
+  .chip{padding:5px 10px;font-size:12.5px}
+  header{gap:8px;padding-block:10px}
+  .brand{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">Văn phòng 3D · Giỏ hàng Grand Park Q9
+      <small>Liên hệ: 0933114527 (gọi hoặc Zalo)</small></div>
+    <nav class="views" aria-label="Góc nhìn">
+      <button class="chip" data-view="lobby" aria-pressed="true">Sảnh đón</button>
+      <button class="chip" data-view="model" aria-pressed="false">Sa bàn dự án</button>
+      <button class="chip" data-view="top" aria-pressed="false">Toàn cảnh</button>
+      <button class="chip" id="spin" aria-pressed="false">Tự xoay</button>
+      <a class="chip" id="manage" href="app.html" hidden style="text-decoration:none">Quản lý</a>
+      <button class="chip" id="logout">Đăng xuất</button>
+    </nav>
+  </header>
+
+  <section class="stage" aria-label="Văn phòng 3D">
+    <canvas id="scene"></canvas>
+    <div class="legend" id="legend"></div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="hint" id="hint">Kéo để xoay · cuộn/chụm để phóng to · bấm vào một căn trong giỏ hàng để xem vị trí trên sa bàn</div>
+  </section>
+
+  <aside aria-label="Bảng điều khiển">
+    <div class="tabs" role="tablist"><button class="tab" role="tab" data-tab="dept" aria-selected="true">Phòng ban</button><button class="tab" role="tab" data-tab="cart" aria-selected="false">Giỏ hàng</button></div>
+    <div id="deptPane" class="pane">
+      <div class="flow"><b>Luồng việc:</b> Nguồn hàng xác minh và cập nhật giỏ hàng. Zalo, Facebook và Video đăng bán cùng một thông tin. Chăm sóc khách &amp; chủ nhà theo khách đến khi giao dịch xong.</div>
+      <div class="list" id="deptList"></div>
+    </div>
+    <div id="cartPane" class="pane" hidden>
+    <div class="cart-head">
+      <h2>Giỏ hàng <b id="count"></b></h2>
+      <div class="sample" id="sampleNote">Dữ liệu mẫu để xem giao diện. Giá, mã căn và trạng thái chưa phải hàng thật.</div>
+      <div class="filters">
+        <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
+        <label class="f">Loại căn<select id="fType"><option value="">Tất cả</option></select></label>
+        <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option></select></label>
+        <label class="f">Sắp xếp<select id="fSort"><option value="price">Giá tăng dần</option><option value="-price">Giá giảm dần</option><option value="area">Diện tích</option></select></label>
+      </div>
+      <div class="tower-pill" id="towerPill" hidden>Đang lọc toà <b id="towerName"></b> <button id="clearTower">Bỏ lọc</button></div>
+    </div>
+    <div class="list" id="list"></div>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script type="module">
+import { CONTACT } from "./config.js";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits } from "./data.js";
+import { requireApproved, loadUnits, signOut } from "./supa.js";
+const me = await requireApproved();
+const live = me.demo ? null : await loadUnits();
+const IS_SAMPLE = !(live && live.length);
+const UNITS = IS_SAMPLE ? sampleUnits() : live;
+
+/* ====== Giỏ hàng UI ====== */
+const $=s=>document.querySelector(s);
+$("#sampleNote").hidden=!IS_SAMPLE;
+if(matchMedia("(max-width:860px)").matches)$("#hint").textContent="Chạm một căn bên dưới để xem vị trí trên sa bàn";
+$("#manage").hidden=!(me.kind==="nhanvien"||me.role==="admin");
+$("#logout").addEventListener("click",signOut);
+const state={zone:"",type:"",status:"",sort:"price",tower:"",active:""};
+ZONES.forEach(z=>$("#fZone").insertAdjacentHTML("beforeend",`<option value="${z.id}">${z.name}</option>`));
+TYPES.forEach(t=>$("#fType").insertAdjacentHTML("beforeend",`<option>${t.n}</option>`));
+$("#legend").innerHTML=`<span style="color:var(--muted)">Sa bàn theo mặt bằng tổng thể, tỉ lệ gần đúng</span>`+ZONES.map(z=>`<span><i style="background:#${z.color.toString(16).padStart(6,"0")}"></i>${z.name}</span>`).join("");
+
+function msgFor(u){return `Chào anh/chị, em quan tâm căn ${u.code} (${zoneOf(u.zone).name}, ${u.type}, ${u.area}m², ${fmtPrice(u.price)}). Anh/chị tư vấn giúp em nhé.`}
+function render(){
+  let rows=UNITS.filter(u=>(!state.zone||u.zone===state.zone)&&(!state.type||u.type===state.type)&&(!state.status||u.status===state.status)&&(!state.tower||u.tower===state.tower));
+  const k=state.sort.replace("-",""), d=state.sort.startsWith("-")?-1:1;
+  rows.sort((a,b)=>(a[k]-b[k])*d);
+  const avail=rows.filter(u=>u.status==="ok").length;
+  $("#count").textContent=`${rows.length} căn · ${avail} còn hàng`;
+  $("#towerPill").hidden=!state.tower; $("#towerName").textContent=state.tower;
+  $("#list").innerHTML=rows.length?rows.map(u=>`
+    <article class="unit ${u.status==="sold"?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
+      <div class="u-top"><div><div class="u-code">${u.code}</div><div class="u-zone">${zoneOf(u.zone).name} · Toà ${u.tower}</div></div>
+        <div class="u-price">${fmtPrice(u.price)}</div></div>
+      <div class="u-meta"><span><b>${u.type}</b></span><span><b>${u.area}</b> m²</span><span>Tầng <b>${u.floor}</b></span>
+        <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span><span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span><span>${u.furnish}</span>
+        <span class="st ${u.status}">${ST[u.status]}</span></div>
+      ${u.status==="sold"?"":`<div class="u-act">
+        <a class="btn zalo" href="https://zalo.me/${CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}">Nhắn Zalo</a>
+        <a class="btn fb" href="${CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}">Messenger</a>
+        <button class="btn" data-copyonly="${u.code}">Chép tin nhắn</button>
+        <button class="btn" data-show="${u.code}">Xem trên sa bàn</button></div>`}
+    </article>`).join(""):`<div class="empty">Không có căn phù hợp bộ lọc.</div>`;
+}
+let toastT; function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>e.hidden=true,2200)}
+function copy(text){ if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(()=>toast("Đã chép tin nhắn, dán vào Zalo/Messenger"),()=>toast("Không chép được, anh chép tay giúp em"))} }
+$("#list").addEventListener("click",e=>{
+  const c=e.target.closest("[data-copy],[data-copyonly],[data-show]");
+  if(!c){const card=e.target.closest(".unit");if(card)showUnit(UNITS.find(x=>x.code===card.dataset.code));return}
+  const code=c.dataset.copy||c.dataset.copyonly||c.dataset.show, u=UNITS.find(x=>x.code===code);
+  if(c.dataset.show){showUnit(u);return}
+  copy(msgFor(u));
+});
+["zone","type","status","sort"].forEach(k=>$("#f"+k[0].toUpperCase()+k.slice(1)).addEventListener("change",e=>{state[k]=e.target.value;render();highlight()}));
+$("#clearTower").addEventListener("click",()=>{state.tower="";state.active="";render();highlight()});
+render();
+
+function showTab(t){document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));$("#deptPane").hidden=t!=="dept";$("#cartPane").hidden=t!=="cart"}
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
+function renderDepts(){$("#deptList").innerHTML=DEPTS.map(d=>`<article class="dept ${state.dept===d.id?"active":""}" id="d-${d.id}">
+  <div class="d-top"><i style="background:${hex(d.color)}"></i><span class="d-name">${d.name}</span><span class="u-zone">${d.roles.length} vị trí</span></div>
+  <p class="d-desc">${d.desc}</p>
+  <ul class="roles">${d.roles.map(r=>`<li><b>${r.t}</b><span>${r.d}</span></li>`).join("")}</ul>
+  <div class="u-act"><button class="btn" data-go="${d.id}">Đi tới phòng</button></div></article>`).join("")}
+$("#deptList").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)focusDept(b.dataset.go)});
+renderDepts();
+
+/* ====== Văn phòng 3D ====== */
+const canvas=$("#scene");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0f1a1f); scene.fog=new THREE.Fog(0x0f1a1f,28,55);
+const camera=new THREE.PerspectiveCamera(50,1,.1,200);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true; controls.maxPolarAngle=Math.PI*.48; controls.minDistance=1; controls.maxDistance=30;
+
+scene.add(new THREE.HemisphereLight(0xdfe8ff,0x2a2018,.55));
+const sun=new THREE.DirectionalLight(0xfff1dc,.9); sun.position.set(8,14,6); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-14,right:14,top:14,bottom:-14}); scene.add(sun);
+
+const M=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7,metalness:.05},o));
+function box(w,h,d,mat,x,y,z,parent=scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;parent.add(m);return m}
+function cyl(rt,rb,h,mat,x,y,z,seg=24){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;scene.add(m);return m}
+function textTex(lines,{w=1024,h=512,bg="#0f1a1f",fg="#e8efe9",accent="#d6a75c"}={}){
+  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");
+  g.fillStyle=bg;g.fillRect(0,0,w,h);
+  lines.forEach((l,i)=>{g.fillStyle=l.c||(i===0?accent:fg);g.font=`${l.w||600} ${l.s}px Lexend, sans-serif`;g.textAlign=l.a||"left";g.fillText(l.t,l.x,l.y)});
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;return t}
+function label(text,color,depthTest=false){
+  const c=document.createElement("canvas"),g=c.getContext("2d"),font="600 28px Lexend, sans-serif";g.font=font;
+  const w=Math.max(256,Math.ceil(g.measureText(text).width)+48);c.width=w;c.height=64;
+  g.fillStyle="rgba(15,26,31,.85)";g.beginPath();g.roundRect?g.roundRect(4,8,w-8,48,12):g.rect(4,8,w-8,48);g.fill();
+  g.fillStyle=color;g.font=font;g.textAlign="center";g.textBaseline="middle";g.fillText(text,w/2,33);
+  const t=new THREE.CanvasTexture(c);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest}));s.scale.set(w/256*1.3,.33,1);return s}
+
+/* Sàn, tường kính, trần */
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(26,20),M(0x2b2f31,{roughness:.35,metalness:.2}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const rug=new THREE.Mesh(new THREE.CircleGeometry(5.2,64),M(0x3a3226,{roughness:.95}));rug.rotation.x=-Math.PI/2;rug.position.y=.01;rug.receiveShadow=true;scene.add(rug);
+const wallM=M(0x1c2a30,{roughness:.9});
+box(26,6,.2,wallM,0,3,-10);
+box(.2,6,20,wallM,-13,3,0);
+const glass=new THREE.MeshPhysicalMaterial({color:0x9fc7d6,transparent:true,opacity:.18,roughness:.05,metalness:.1});
+for(let i=-2;i<=2;i++){const g=box(4.6,5.6,.06,glass,i*5,2.8,10);g.castShadow=false; box(.12,5.8,.12,M(0x111111),i*5+2.5,2.9,10)}
+box(.06,5.6,20,glass,13,2.8,0).castShadow=false;
+/* Vân gỗ tường sau */
+for(let i=0;i<26;i++) box(.5,5.4,.08,M(i%2?0x6b4a2f:0x5d4029,{roughness:.6}),-12.5+i*1,2.8,-9.86);
+
+/* Màn hình lớn trên tường */
+const avail=UNITS.filter(u=>u.status==="ok").length;
+const screenTex=textTex([
+  {t:"GIỎ HÀNG HÔM NAY",s:54,x:60,y:110},
+  {t:`${avail} căn còn hàng`,s:110,x:60,y:250,c:"#e8efe9",w:700},
+  {t:`${ZONES.length} phân khu · ${UNITS.length} căn đang mở bán ${IS_SAMPLE?"(dữ liệu mẫu)":""}`,s:38,x:60,y:330,c:"#93a9a6",w:400},
+  {t:"Quét QR / nhắn Zalo để nhận bảng giá mới nhất",s:36,x:60,y:440,c:"#d6a75c",w:500}]);
+box(8.4,4.4,.12,M(0x050708),0,3.2,-9.7);
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(8,4.0),new THREE.MeshBasicMaterial({map:screenTex}));scr.position.set(0,3.2,-9.62);scene.add(scr);
+
+/* Quầy lễ tân */
+const recep=new THREE.Group();scene.add(recep);recep.position.set(0,0,-6.4);
+box(6,1.1,1.1,M(0xe9e4da,{roughness:.4}),0,.55,0,recep);
+box(6.2,.08,1.3,M(0x8a6a44,{roughness:.35,metalness:.2}),0,1.14,0,recep);
+box(6.02,.06,.02,new THREE.MeshBasicMaterial({color:0xd6a75c}),0,.3,.56,recep);
+const signTex=textTex([{t:"PHÒNG TƯ VẤN Q9",s:92,x:512,y:150,a:"center"},{t:"Căn hộ Grand Park · Thủ Đức",s:46,x:512,y:230,a:"center",c:"#93a9a6",w:400}],{w:1024,h:300,bg:"#e9e4da",accent:"#2b2f31"});
+const sign=new THREE.Mesh(new THREE.PlaneGeometry(4.2,1.23),new THREE.MeshBasicMaterial({map:signTex}));sign.position.set(0,.6,.56);recep.add(sign);
+
+/* ====== Sa bàn dự án: bố cục theo mặt bằng tổng thể Vinhomes Grand Park (tỉ lệ gần đúng) ====== */
+const texCache={};
+const TOP=.78, FH=.03;                        // mặt sa bàn, chiều cao 1 tầng
+box(7.8,.7,5.4,M(0x3a2a1c,{roughness:.5}),0,.35,0);                     // chân bàn gỗ
+box(7.6,.06,5.2,M(0x8f9a86,{roughness:.95}),0,.73,0);                   // mặt đất
+const caseGlass=new THREE.MeshPhysicalMaterial({color:0xcfe6ee,transparent:true,opacity:.08,roughness:.05});
+[[0,2.6,7.8,.02],[0,-2.6,7.8,.02],[3.9,0,.02,5.2],[-3.9,0,.02,5.2]].forEach(([x,z,w,d])=>{const g=box(w,.3,d,caseGlass,x,TOP+.15,z);g.castShadow=false});
+function flat(shape,color,y,o={}){const m=new THREE.Mesh(new THREE.ShapeGeometry(shape,48),M(color,o));m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;scene.add(m);return m}
+function ellipse(cx,cz,rx,rz){const s=new THREE.Shape();s.absellipse(cx,-cz,rx,rz,0,Math.PI*2);return s}
+function rect(x1,z1,x2,z2){const s=new THREE.Shape();s.moveTo(x1,-z1);s.lineTo(x2,-z1);s.lineTo(x2,-z2);s.lineTo(x1,-z2);s.closePath();return s}
+function road(x1,z1,x2,z2,w=.1){const dx=x2-x1,dz=z2-z1,L=Math.hypot(dx,dz),m=new THREE.Mesh(new THREE.PlaneGeometry(L,w),M(0x3a3f42,{roughness:.9}));
+  m.rotation.set(-Math.PI/2,0,-Math.atan2(dz,dx));m.position.set((x1+x2)/2,TOP+.004,(z1+z2)/2);m.receiveShadow=true;scene.add(m)}
+const water={roughness:.12,metalness:.35};
+const WATER=[[1.2,-.85,.2,.28],[1.42,-.4,.2,.26],[1.5,.05,.22,.26],[1.38,.55,.2,.28],[1.2,1.0,.22,.22],[2.15,-.2,.32,.5]];
+flat(ellipse(.95,-.15,.8,.65),0x5f8f4f,TOP+.002,{roughness:1});                    // công viên 36ha
+WATER.forEach(([x,z,a,b])=>flat(ellipse(x,z,a,b),0x3b7fa8,TOP+.005,water));          // hồ, kênh, biển hồ
+flat(rect(3.25,-2.6,3.9,2.6),0x35698a,TOP+.004,water);                                 // sông Đồng Nai (Đông)
+flat(rect(-1.5,2.05,3.9,2.6),0x35698a,TOP+.004,water);                                 // sông Tắc (Nam)
+road(-.11,-2.6,-1.3,1.3,.14);                 // đại lộ chính chạy chéo
+road(-3.6,-2.38,3.2,-2.38,.1);               // đường Nguyễn Xiển / Phước Thiện phía Bắc
+road(-1.15,.82,2.4,1.38,.09);                // phố Broadway
+road(1.78,-1.4,1.78,1.05,.08);               // đường ven hồ
+road(-3.05,.62,-1.2,-.18,.07);               // đường nội khu Rainbow
+road(-3.45,-.12,-3.2,.85,.07);               // cổng vào phía Tây
+/* cây xanh */
+{const n=260,geo=new THREE.ConeGeometry(.035,.11,6),im=new THREE.InstancedMesh(geo,M(0x2f6b3c,{roughness:.9}),n),o=new THREE.Object3D();let k=0,s=3;
+ const r=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ const wet=(x,z)=>WATER.some(([a,b,c,d])=>((x-a)/c)**2+((z-b)/d)**2<1.1);
+ while(k<n){const a=r()*Math.PI*2,d=Math.sqrt(r()),x=.95+Math.cos(a)*.8*d,z=-.15+Math.sin(a)*.65*d;if(wet(x,z))continue;
+   o.position.set(x,TOP+.055,z);o.scale.setScalar(.7+r()*.6);o.updateMatrix();im.setMatrixAt(k++,o.matrix)}
+ im.castShadow=true;scene.add(im);
+/* biệt thự thấp tầng (The Manhattan, The Rivus) */
+ const pts=[];for(let x=-.75;x<1.65;x+=.13)for(let z=.95;z<1.98;z+=.13)if(!wet(x,z)&&Math.abs(z-(.82+(x+1.15)*.158))>.09)pts.push([x,z]);
+ for(let x=2.42;x<3.15;x+=.13)for(let z=-1.3;z<1.95;z+=.13)if(!wet(x,z))pts.push([x,z]);
+ const vg=new THREE.BoxGeometry(.075,.05,.075),vm=new THREE.InstancedMesh(vg,M(0xe8e2d4,{roughness:.8}),pts.length),rf=new THREE.InstancedMesh(new THREE.ConeGeometry(.06,.04,4),M(0xb5654a,{roughness:.8}),pts.length);
+ pts.forEach(([x,z],i)=>{o.position.set(x,TOP+.03,z);o.scale.setScalar(1);o.rotation.set(0,0,0);o.updateMatrix();vm.setMatrixAt(i,o.matrix);
+   o.position.y=TOP+.075;o.rotation.y=Math.PI/4;o.updateMatrix();rf.setMatrixAt(i,o.matrix)});
+ vm.castShadow=rf.castShadow=true;scene.add(vm,rf)}
+/* công trình mốc */
+box(.5,.1,.3,M(0xc9ccd0,{roughness:.4}),.25,TOP+.05,-.55);             // Vincom Mega Mall
+[[-.55,-.3],[-.25,-.3],[-.55,.1],[-.25,.1],[-.55,.5],[-.25,.5]].forEach(([x,z],i)=>box(.14,.6+(i%3)*.1,.14,new THREE.MeshStandardMaterial({map:facadeTex(24,0x9aa3a8),roughness:.6}),x,TOP+.32+(i%3)*.05,z)); // Masteri Centre Point
+const tags=[];function tag(text,x,z,y,c="#e8efe9",s=.5){const l=label(text,c,true);l.position.set(x,y,z);l.scale.multiplyScalar(s);scene.add(l);tags.push(l);return l}
+tag("Công viên 36ha",.85,-.15,TOP+.25);tag("Vincom Mega Mall",.25,-.55,TOP+.32,"#e8efe9",.42);tag("Masteri Centre Point",-.4,.1,TOP+1.15,"#c9d1d4",.42);
+tag("Sông Tắc",.8,2.32,TOP+.15,"#9fd0ea",.45);tag("Sông Đồng Nai",3.55,0,TOP+.15,"#9fd0ea",.45);tag("The Manhattan",.4,1.45,TOP+.3,"#e8efe9",.42);tag("The Rivus",2.75,.2,TOP+.3,"#e8efe9",.42);
+tag("Cổng vào",-3.35,.45,TOP+.3,"#d6a75c",.42);tag("▲ Bắc",-3.45,-2.15,TOP+.3,"#d6a75c",.45);
+
+/* Toà căn hộ: mặt bằng chữ Z, T, U */
+const FOOT={Z:[[.16,.06,.04,-.07],[.06,.2,0,0],[.16,.06,-.04,.07]],T:[[.22,.07,0,-.065],[.07,.2,0,.02]],U:[[.24,.07,0,.08],[.07,.2,-.085,0],[.07,.2,.085,0]]};
+function facadeTex(floors,color){const k=floors+"_"+color;if(texCache[k])return texCache[k];const c=document.createElement("canvas");c.width=32;c.height=floors*6;const g=c.getContext("2d");
+  g.fillStyle="#e4e6e1";g.fillRect(0,0,32,c.height);
+  for(let f=0;f<floors;f++){g.fillStyle="#3a5160";for(let i=0;i<4;i++)g.fillRect(2+i*8,f*6+1,5,3);if(f%5===0){g.fillStyle=hex(color);g.fillRect(0,f*6+5,32,1)}}
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return texCache[k]=t}
+const towers=[],towerMeshes=[];
+ZONES.forEach(z=>{
+  const n=z.towers.length,rows=Math.ceil(n/z.cols),a=z.ang*Math.PI/180;
+  tag(z.name,z.c[0],z.c[1],TOP+1.55,hex(z.color),.5);
+  z.towers.forEach((t,i)=>{
+    const [floors,shape]=z.tf[t],col=i%z.cols,row=Math.floor(i/z.cols),inRow=row===rows-1?n-row*z.cols:z.cols;
+    const lx=(col-(inRow-1)/2)*z.sp[0],lz=(row-(rows-1)/2)*z.sp[1];
+    const x=z.c[0]+lx*Math.cos(a)-lz*Math.sin(a),zz=z.c[1]+lx*Math.sin(a)+lz*Math.cos(a);
+    const H=floors*FH,g=new THREE.Group();g.position.set(x,TOP,zz);g.rotation.y=-a;scene.add(g);
+    const mat=new THREE.MeshStandardMaterial({map:facadeTex(floors,z.color),roughness:.5,metalness:.1,transparent:true});
+    const crown=M(z.color,{emissive:z.color,emissiveIntensity:.15,transparent:true});
+    box(.26,.03,.26,M(0xb9bbb5),0,.015,0,g);
+    const parts=[];
+    FOOT[shape].forEach(([w,d,px,pz])=>{parts.push(box(w,H,d,mat,px,.03+H/2,pz,g),box(w+.01,.03,d+.01,crown,px,.03+H+.015,pz,g))});
+    const units=UNITS.filter(u=>u.tower===t),free=units.filter(u=>u.status==="ok").length;
+    const lb=label(`${t} · ${floors} tầng · ${free} căn`,hex(z.color));lb.position.set(0,H+.3,0);lb.scale.multiplyScalar(.5);lb.visible=false;g.add(lb);
+    g.userData={tower:t,zone:z.id,H,floors,label:lb,mats:[mat,crown]};
+    parts.forEach(m=>{m.userData.tw=g;towerMeshes.push(m)});towers.push(g);
+  });
+});
+
+/* Đánh dấu căn trên sa bàn */
+function dirVec(d){d=(d||"").toLowerCase();const v=new THREE.Vector3((/đông/.test(d)?1:0)-(/tây/.test(d)?1:0),0,(/nam/.test(d)?1:0)-(/bắc/.test(d)?1:0));return v.lengthSq()?v.normalize():new THREE.Vector3(0,0,1)}
+const mark=new THREE.Group();scene.add(mark);mark.visible=false;
+const markBox=new THREE.Mesh(new THREE.BoxGeometry(.08,FH*1.6,.08),new THREE.MeshBasicMaterial({color:0xffc861}));mark.add(markBox);
+const floorRing=new THREE.Mesh(new THREE.BoxGeometry(.32,FH*.9,.32),new THREE.MeshBasicMaterial({color:0xffc861,transparent:true,opacity:.6,depthWrite:false}));scene.add(floorRing);floorRing.visible=false;
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,1,6),new THREE.MeshBasicMaterial({color:0xffc861}));mark.add(beam);
+let markLabel=null;
+function showUnit(u){
+  const g=towers.find(x=>x.userData.tower===u.tower);if(!g){toast("Toà này chưa có trên sa bàn");return}
+  state.active=u.code;state.focus=u.tower;render();highlight();
+  const f=Math.min(Math.max(u.floor||1,1),g.userData.floors),y=TOP+.03+(f-.5)*FH,v=dirVec(u.dir);
+  const p=g.position.clone().add(v.clone().multiplyScalar(.14));p.y=y;
+  mark.position.copy(p);mark.visible=true;markBox.rotation.y=Math.atan2(v.x,v.z);
+  floorRing.position.set(g.position.x,y,g.position.z);floorRing.rotation.y=g.rotation.y;floorRing.visible=true;
+  const top=g.userData.H+TOP+.25-y;beam.scale.y=top;beam.position.y=top/2;
+  if(markLabel)mark.remove(markLabel);
+  markLabel=label(`${u.code} · Tầng ${u.floor} · Hướng ${u.dir}`,"#ffc861");markLabel.position.y=top+.05;markLabel.scale.multiplyScalar(.42);mark.add(markLabel);
+  const midY=TOP+g.userData.H*.55,Hh=g.userData.H,dist=Hh*1.2+(camera.aspect<1.1?1.3:.9),cam=p.clone().add(v.clone().multiplyScalar(dist));cam.y=TOP+Hh+.9;
+  goView(null,[cam.x,cam.y,cam.z],[p.x,(y+TOP+Hh)/2+.15,p.z]);
+  document.querySelector(`[data-code="${CSS.escape(u.code)}"]`)?.scrollIntoView({block:"nearest",behavior:reduce?"auto":"smooth"});
+}
+/* Ghế sofa chờ + bàn tư vấn */
+const sofaM=M(0x46555c,{roughness:.95});
+function sofa(x,z,rot){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);box(2.2,.45,.9,sofaM,0,.25,0,g);box(2.2,.6,.2,sofaM,0,.75,-.35,g);box(.2,.35,.9,sofaM,-1.1,.6,0,g);box(.2,.35,.9,sofaM,1.1,.6,0,g)}
+sofa(-3.8,7.6,Math.PI*.85); sofa(3.8,7.6,-Math.PI*.85);
+function desk(x,z,rot=0,s=1){
+  const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;g.scale.set(s,1,s);scene.add(g);
+  box(2.2,.06,1.1,M(0x8a6a44,{roughness:.4}),0,.76,0,g);
+  [[-1,-.45],[1,-.45],[-1,.45],[1,.45]].forEach(([a,b])=>box(.05,.76,.05,M(0x111111),a,.38,b,g));
+  box(.8,.5,.04,M(0x050708),0,1.05,-.3,g);
+  const mon=new THREE.Mesh(new THREE.PlaneGeometry(.74,.44),new THREE.MeshBasicMaterial({color:0x2e6a8e}));mon.position.set(0,1.05,-.275);g.add(mon);
+  box(.6,.08,.6,M(0x2b3a40),0,.48,1.0,g);box(.6,.5,.06,M(0x2b3a40),0,.75,1.3,g);
+  box(.6,.08,.6,M(0x2b3a40),0,.48,-1.0,g);
+  return g;
+}
+/* Khu phòng ban */
+const deptMeshes=[];
+function person(x,z,color){cyl(.17,.2,.55,M(color,{roughness:.8}),x,.8,z,16);
+  const h=new THREE.Mesh(new THREE.SphereGeometry(.14,16,12),M(0xe2c4a6,{roughness:.8}));h.position.set(x,1.22,z);h.castShadow=true;scene.add(h)}
+DEPTS.forEach(d=>{
+  const [x,z]=d.pos,[w,dz]=d.size,face=x<0?1:-1;
+  const tile=new THREE.Mesh(new THREE.PlaneGeometry(w,dz),new THREE.MeshStandardMaterial({color:d.color,transparent:true,opacity:.16,roughness:.8}));
+  tile.rotation.x=-Math.PI/2;tile.position.set(x,.015,z);tile.receiveShadow=true;tile.userData={dept:d.id};scene.add(tile);deptMeshes.push(tile);
+  const edge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(w,dz)),new THREE.LineBasicMaterial({color:d.color}));
+  edge.rotation.x=-Math.PI/2;edge.position.set(x,.02,z);scene.add(edge);
+  box(.05,1.1,dz-1.8,glass,x+face*w/2,.55,z).castShadow=false;
+  const tex=textTex([{t:d.sign,s:84,x:512,y:120,a:"center",c:hex(d.color),w:700},{t:d.tag,s:40,x:512,y:195,a:"center",w:400}],{w:1024,h:240});
+  const sg=new THREE.Mesh(new THREE.PlaneGeometry(3,.7),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+  sg.position.set(x+face*w/2,1.75,z);sg.rotation.y=face*Math.PI/2;scene.add(sg);
+  const n=d.roles.length,gap=(dz-1)/n;
+  d.roles.forEach((r,i)=>{
+    const zp=z+(i-(n-1)/2)*gap,dx=x-face*1.0;
+    desk(dx,zp,face*Math.PI/2,.6);
+    person(dx+face*.6,zp,d.color);
+    const lb=label(r.t,hex(d.color),true);lb.position.set(dx,2.05,zp);lb.scale.multiplyScalar(.7);scene.add(lb);
+  });
+  if(d.id==="video"){
+    box(3,2.6,.05,M(0x3d8a5a,{roughness:.9}),x+1,1.4,-9.82);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.35,.04,12,40),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1}));
+    ring.position.set(x+2,1.6,z-.8);ring.rotation.y=-Math.PI/4;scene.add(ring);
+    cyl(.02,.02,1.6,M(0x111111),x+2,.8,z-.8,8);
+    box(.3,.22,.4,M(0x111111),x+2.1,1.45,z+.6);cyl(.02,.02,1.4,M(0x111111),x+2.1,.7,z+.6,8);
+  }
+});
+/* Cây xanh */
+function plant(x,z,s=1){cyl(.28*s,.22*s,.6*s,M(0xd8d2c4),x,.3*s,z);const f=new THREE.Mesh(new THREE.IcosahedronGeometry(.55*s,1),M(0x3f7a4f,{roughness:.9}));f.position.set(x,1*s,z);f.castShadow=true;scene.add(f)}
+[[-12,9],[12,9],[-4.6,-8.8],[4.6,-8.8],[-6,9],[6,9]].forEach(([x,z])=>plant(x,z,1.2));
+/* Đèn thả */
+for(let i=-1;i<=1;i++){const l=cyl(.22,.3,.18,M(0xd6a75c,{emissive:0xd6a75c,emissiveIntensity:.8}),i*2.4,5.9,1.5);
+  const p=new THREE.PointLight(0xffd59a,.5,10);p.position.set(i*2.4,5.2,1.5);scene.add(p)}
+
+/* Camera presets */
+const VIEWSET={lobby:{p:[0,5.2,9.2],t:[0,1.6,-2]},model:{p:[0,5.2,5.8],t:[0,.8,0]},top:{p:[0,21,11],t:[0,0,0]}};
+let tween=null;
+function goView(name,p,t){const v=p?{p,t}:VIEWSET[name];tween={from:camera.position.clone(),ft:controls.target.clone(),to:new THREE.Vector3(...v.p),tt:new THREE.Vector3(...v.t),k:0};
+  document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===name))}
+camera.position.set(0,12,22);controls.target.set(0,1,0);goView("lobby");
+document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>goView(b.dataset.view)));
+$("#spin").addEventListener("click",e=>{controls.autoRotate=!controls.autoRotate;controls.autoRotateSpeed=.8;e.currentTarget.setAttribute("aria-pressed",controls.autoRotate)});
+
+function highlight(){
+  towers.forEach(g=>{const d=g.userData;
+    const ft=state.active?state.focus:state.tower;
+    const on=(!state.zone||d.zone===state.zone)&&(!ft||d.tower===ft);
+    d.mats.forEach(m=>{m.opacity=on?1:.12;m.depthWrite=on});d.mats[1].emissiveIntensity=ft===d.tower?.7:.15;
+    d.label.visible=!state.active&&(ft?ft===d.tower:(state.zone?d.zone===state.zone:false))});
+  tags.forEach(t=>t.visible=!state.active);
+  if(!state.active){mark.visible=false;floorRing.visible=false}
+}
+function focusDept(id){const d=DEPTS.find(x=>x.id===id),[x,z]=d.pos,face=x<0?1:-1;
+  state.dept=id;showTab("dept");renderDepts();
+  deptMeshes.forEach(m=>m.material.opacity=m.userData.dept===id?.42:.16);
+  document.getElementById("d-"+id)?.scrollIntoView({block:"nearest",behavior:reduce?"auto":"smooth"});
+  goView(null,[x+face*6.5,4.4,z+3],[x-face*.5,.9,z])}
+function focusTower(t){const g=towers.find(x=>x.userData.tower===t);state.tower=t;state.active="";state.focus="";showTab("cart");render();highlight();
+  const p=g.position;goView("model",[p.x+1.3,TOP+1.7,p.z+1.8],[p.x,TOP+.5,p.z])}
+highlight();
+
+/* Hover + click trên sa bàn */
+const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let hover=null,downAt=null;
+function pointerTo(e){const r=canvas.getBoundingClientRect();ptr.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ptr,camera);return ray.intersectObjects(towerMeshes)[0]?.object.userData.tw}
+canvas.addEventListener("pointermove",e=>{const o=pointerTo(e),tip=$("#tip");
+  if(hover&&hover!==o&&hover.userData.tower!==state.tower)hover.scale.set(1,1,1);
+  hover=o||null;canvas.style.cursor=o?"pointer":"grab";
+  if(o){o.scale.set(1.12,1,1.12);const d=o.userData,us=UNITS.filter(u=>u.tower===d.tower);
+    const r=canvas.getBoundingClientRect();tip.style.left=(e.clientX-r.left)+"px";tip.style.top=(e.clientY-r.top)+"px";
+    tip.textContent=`${zoneOf(d.zone).name} · Toà ${d.tower} · ${us.filter(u=>u.status==="ok").length}/${us.length} căn còn`;tip.hidden=false}
+  else{const dh=ray.intersectObjects(deptMeshes)[0]?.object;
+    if(dh){const D=DEPTS.find(x=>x.id===dh.userData.dept),r=canvas.getBoundingClientRect();canvas.style.cursor="pointer";
+      tip.style.left=(e.clientX-r.left)+"px";tip.style.top=(e.clientY-r.top)+"px";tip.textContent=`Phòng ${D.name} · ${D.roles.length} vị trí`;tip.hidden=false}
+    else tip.hidden=true}});
+canvas.addEventListener("pointerdown",e=>downAt=[e.clientX,e.clientY]);
+canvas.addEventListener("pointerup",e=>{if(!downAt||Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])>6)return;const o=pointerTo(e);
+  if(o){focusTower(o.userData.tower);toast(`Đã lọc giỏ hàng theo toà ${o.userData.tower}`)}
+  else{const dh=ray.intersectObjects(deptMeshes)[0]?.object;if(dh)focusDept(dh.userData.dept)}});
+canvas.addEventListener("pointerleave",()=>$("#tip").hidden=true);
+
+function resize(){const r=canvas.parentElement.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(canvas.parentElement);resize();
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let lastT=performance.now();
+(function loop(){requestAnimationFrame(loop);const now=performance.now(),dt=Math.min(.1,(now-lastT)/1000);lastT=now;
+  if(tween){tween.k=Math.min(1,tween.k+(reduce?1:dt/1.1));const e=1-Math.pow(1-tween.k,3);
+    camera.position.lerpVectors(tween.from,tween.to,e);controls.target.lerpVectors(tween.ft,tween.tt,e);if(tween.k>=1)tween=null}
+  if(mark.visible){const k=1+.3*Math.sin(performance.now()/180);markBox.scale.set(k,1,k)}
+  controls.update();renderer.render(scene,camera)})();
+/* Khách và cộng tác viên chỉ xem giỏ hàng, không xem thông tin phòng ban nội bộ */
+if(!(me.kind==="nhanvien"||me.role==="admin")){document.querySelector('[data-tab="dept"]').hidden=true;showTab("cart")}
+</script>
+</body>
+</html>

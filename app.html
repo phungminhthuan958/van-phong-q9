@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quản lý · Văn phòng Q9</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Lexend:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--display);font-weight:600;font-size:17px}
+.who{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.who b{color:var(--text);font-weight:600}
+nav.tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:none;border-bottom:2px solid transparent;padding:12px 10px;font-family:var(--display);font-weight:600;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--brass)}
+.badge{background:var(--hold);color:var(--ink);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
+main{padding:16px;max-width:1200px;margin:0 auto;display:grid;gap:14px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.bar label.f{min-width:140px;flex:1}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:860px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--panel);position:sticky;top:0}
+tr:last-child td{border-bottom:none}
+td select{padding:5px 6px;width:auto}
+td.num{text-align:right}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.price{color:var(--brass);font-weight:600;white-space:nowrap}
+.muted{color:var(--muted)}
+.panel{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel);display:grid;gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.dept-head{display:flex;align-items:center;gap:10px}
+.dept-head i{width:14px;height:14px;border-radius:3px}
+.roles{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.roles li{padding-left:12px;border-left:2px solid var(--line)}
+.roles b{display:block}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+main>section{min-width:0;display:grid;gap:14px}
+/* Điện thoại: bảng chuyển thành thẻ, dễ đọc bằng một tay */
+@media (max-width:760px){
+  header{padding:10px 12px}.who{margin-left:0;width:100%;justify-content:space-between}
+  main{padding:12px}
+  .bar label.f{min-width:0;flex-basis:calc(50% - 4px)}
+  .bar .btn{flex:1 1 auto;justify-content:center}
+  .tablewrap{border:none;overflow:visible}
+  table{min-width:0}
+  thead{display:none}
+  table,tbody,tr,td{display:block}
+  tr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  td{padding:0;border:none}
+  td:first-child{flex-basis:100%;font-size:15px}
+  td:last-child{flex-basis:100%}
+  td.num::after{content:" " attr(data-u)}
+  td select{width:100%}
+  .grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Văn phòng Q9 · Quản lý</span>
+  <a class="btn sm" href="index.html">Vào văn phòng 3D</a>
+  <div class="who"><span id="who"></span><button class="btn sm" id="logout">Đăng xuất</button></div>
+</header>
+<div id="demoNote" class="msg warn" style="margin:12px 16px 0" hidden>Chế độ xem thử: web chưa nối máy chủ, dữ liệu là dữ liệu mẫu và mọi thay đổi sẽ mất khi tải lại trang.</div>
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="cart" aria-selected="true">Giỏ hàng</button>
+  <button class="tab" data-tab="people" id="tabPeople" hidden>Tài khoản <span class="badge" id="pendingCount" hidden></span></button>
+  <button class="tab" data-tab="mine" id="tabMine" hidden>Phòng của tôi</button>
+</nav>
+
+<main>
+  <section id="paneCart">
+    <div class="bar">
+      <label class="f">Tìm mã căn<input id="q" placeholder="VD: S9.03"></label>
+      <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
+      <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option></select></label>
+      <button class="btn primary" id="addBtn" hidden>+ Nhập 1 căn</button>
+      <button class="btn" id="bulkBtn" hidden>Nhập nhiều căn từ Excel</button>
+      <button class="btn" id="zaloBtn" hidden>Đọc tin nhóm Zalo</button>
+    </div>
+    <div class="panel" id="zalo" hidden>
+      <h3>Đọc tin từ nhóm Zalo nguồn hàng</h3>
+      <p class="muted" style="margin:0">Trong nhóm Zalo, anh chọn nhiều tin (giữ tin nhắn → Chọn nhiều → Sao chép), rồi dán vào ô dưới. Web tự tách mã căn, toà, loại, diện tích, tầng, hướng, giá và số điện thoại người đăng.
+        Số điện thoại được lưu vào ô <b>Người nắm hàng</b> (nội bộ, khách không thấy). Kết quả chuyển sang bảng kiểm tra để anh sửa trước khi nhập.</p>
+      <textarea id="zaloText" rows="8" placeholder="🔥 Bán căn S9.03-1205 Origami 2PN 65m2 tầng 12 BC Đông Nam giá 3.45 tỷ. LH 0909..."></textarea>
+      <div class="acts"><button class="btn primary" id="zaloRead">Đọc tin</button><button class="btn" id="zaloClose">Đóng</button></div>
+      <div id="zaloResult"></div>
+    </div>
+    <div class="panel" id="bulk" hidden>
+      <h3>Nhập nhiều căn từ Excel / Google Sheet</h3>
+      <p class="muted" style="margin:0">Trong Excel, anh bôi đen các dòng (có hoặc không có dòng tiêu đề), bấm Ctrl+C rồi dán vào ô dưới. Các cột theo đúng thứ tự:
+        <b>Mã căn · Phân khu · Toà · Loại căn · Diện tích · Tầng · Hướng · View · Giá (tỷ) · Trạng thái · Nội thất · Người nắm hàng · Chủ nhà · SĐT chủ nhà</b>.
+        4 cột cuối là thông tin nội bộ, khách không thấy. Nếu mã căn đã có thì dòng đó sẽ cập nhật căn cũ.</p>
+      <textarea id="bulkText" rows="7" placeholder="S9.03-1205	Origami	S9.03	2PN	65,5	12	Đông Nam	Nội khu	3,45	Còn	Full nội thất	Anh Tú	Chị Lan	0909..."></textarea>
+      <div class="acts"><button class="btn" id="bulkPreview">Xem trước</button><button class="btn primary" id="bulkSave" disabled>Nhập</button><button class="btn" id="bulkClose">Đóng</button></div>
+      <div id="bulkResult"></div>
+    </div>
+    <form class="panel" id="unitForm" hidden>
+      <h3 id="formTitle">Thêm căn</h3>
+      <div class="grid">
+        <label class="f">Mã căn<input id="u_code" required placeholder="S9.03-1205"></label>
+        <label class="f">Phân khu<select id="u_zone"></select></label>
+        <label class="f">Toà<select id="u_tower"></select></label>
+        <label class="f">Loại căn<select id="u_type"></select></label>
+        <label class="f">Diện tích (m²)<input id="u_area" type="number" step="0.1" min="10" required></label>
+        <label class="f">Tầng<input id="u_floor" type="number" min="1" max="60"></label>
+        <label class="f">Hướng ban công<select id="u_dir"></select></label>
+        <label class="f">View<select id="u_view"></select></label>
+        <label class="f">Giá (tỷ)<input id="u_price" type="number" step="0.01" min="0.1" required></label>
+        <label class="f">Trạng thái<select id="u_status"><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option></select></label>
+        <label class="f">Nội thất<select id="u_furnish"><option>Bàn giao cơ bản</option><option>Full nội thất</option></select></label>
+        <label class="f">Ghi chú (khách cũng thấy)<input id="u_note"></label>
+      </div>
+      <div class="msg warn">Thông tin nội bộ bên dưới chỉ quản trị và phòng Nguồn hàng thấy. Khách và sales chỉ thấy số liên hệ chung.</div>
+      <div class="grid">
+        <label class="f">Người nắm hàng<input id="p_holder"></label>
+        <label class="f">Chủ nhà<input id="p_owner_name"></label>
+        <label class="f">SĐT chủ nhà<input id="p_owner_phone" type="tel"></label>
+        <label class="f">Ghi chú nội bộ<input id="p_note" placeholder="Giá chốt, hoa hồng..."></label>
+      </div>
+      <div class="acts"><button class="btn primary" type="submit">Lưu</button><button class="btn" type="button" id="cancelForm">Huỷ</button></div>
+    </form>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mã căn</th><th>Phân khu · Toà</th><th>Loại</th><th>DT m²</th><th>Tầng</th><th>Hướng · View</th><th>Giá</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody id="units"></tbody>
+    </table></div>
+  </section>
+
+  <section id="panePeople" hidden>
+    <div class="bar">
+      <label class="f">Lọc<select id="pStatus"><option value="">Tất cả</option><option value="pending">Chờ duyệt</option><option value="approved">Đã duyệt</option><option value="blocked">Đã chặn</option></select></label>
+      <label class="f">Loại tài khoản<select id="pKind"><option value="">Tất cả</option><option value="khach">Khách hàng</option><option value="ctv">Cộng tác viên</option><option value="nhanvien">Nhân viên</option></select></label>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Họ tên</th><th>Điện thoại</th><th>Email</th><th>Loại</th><th>Phòng ban</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày đăng ký</th></tr></thead>
+      <tbody id="people"></tbody>
+    </table></div>
+  </section>
+
+  <section id="paneMine" hidden></section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script type="module">
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo } from "./data.js";
+import { CONTACT } from "./config.js";
+import { sb, requireApproved, loadUnits, signOut } from "./supa.js";
+const $ = s => document.querySelector(s);
+let toastT; const toast = t => { const e=$("#toast"); e.textContent=t; e.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>e.hidden=true,2400); };
+const opt = (v,l,sel) => `<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;
+
+// Đổi mật khẩu khi bấm link "quên mật khẩu" trong email
+sb?.auth.onAuthStateChange(async ev => {
+  if (ev !== "PASSWORD_RECOVERY") return;
+  $("main").insertAdjacentHTML("afterbegin", `<form class="panel" id="pwForm"><h3>Đặt mật khẩu mới</h3><label class="f">Mật khẩu mới<input id="pw" type="password" minlength="8" required></label><button class="btn primary">Lưu mật khẩu</button></form>`);
+  $("#pwForm").addEventListener("submit", async e => { e.preventDefault(); const { error } = await sb.auth.updateUser({ password: $("#pw").value }); if (error) return toast(error.message); $("#pwForm").remove(); toast("Đã đổi mật khẩu"); });
+});
+
+const me = await requireApproved();
+if (me.kind !== "nhanvien" && me.role !== "admin") location.replace("index.html");
+const isAdmin = me.role === "admin";
+const canEdit = isAdmin || me.dept === "nguon";
+$("#demoNote").hidden = !me.demo;
+$("#who").innerHTML = `<b>${esc(me.full_name || me.email)}</b> · ${isAdmin ? "Quản trị" : esc(deptOf(me.dept)?.name || "Nhân viên")}`;
+$("#logout").addEventListener("click", signOut);
+$("#tabPeople").hidden = !isAdmin;
+$("#tabMine").hidden = !me.dept;
+$("#addBtn").hidden = !canEdit;
+$("#bulkBtn").hidden = !canEdit;
+$("#zaloBtn").hidden = !canEdit;
+
+function showTab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $("#paneCart").hidden=t!=="cart"; $("#panePeople").hidden=t!=="people"; $("#paneMine").hidden=t!=="mine"; }
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
+
+/* ---------- Giỏ hàng ---------- */
+let UNITS = me.demo ? sampleUnits().map((u,i)=>({...u,id:"demo"+i})) : (await loadUnits()) || [];
+// Thông tin nội bộ (người nắm hàng, chủ nhà): chỉ tải khi có quyền.
+const PRIV = {}; const PF = ["holder","owner_name","owner_phone","note"];
+async function loadPriv(){ if (!canEdit || me.demo) return; const { data } = await sb.from("unit_private").select("*"); (data||[]).forEach(r=>PRIV[r.unit_id]=r); }
+await loadPriv();
+ZONES.forEach(z => { $("#fZone").insertAdjacentHTML("beforeend", opt(z.id,z.name)); $("#u_zone").insertAdjacentHTML("beforeend", opt(z.id,z.name)); });
+TYPES.forEach(t => $("#u_type").insertAdjacentHTML("beforeend", opt(t.n,t.n)));
+DIRS.forEach(d => $("#u_dir").insertAdjacentHTML("beforeend", opt(d,d)));
+VIEWS.forEach(v => $("#u_view").insertAdjacentHTML("beforeend", opt(v,v)));
+const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); $("#u_tower").innerHTML = z.towers.map(t=>opt(t,t,sel)).join(""); };
+$("#u_zone").addEventListener("change", ()=>fillTowers()); fillTowers();
+["#q","#fZone","#fStatus"].forEach(s=>$(s).addEventListener("input",renderUnits));
+
+function renderUnits(){
+  const q=$("#q").value.trim().toLowerCase(), z=$("#fZone").value, s=$("#fStatus").value;
+  const rows = UNITS.filter(u=>(!q||u.code.toLowerCase().includes(q))&&(!z||u.zone===z)&&(!s||u.status===s)).sort((a,b)=>a.price-b.price);
+  if (!UNITS.length) {
+    $("#units").innerHTML = `<tr><td colspan="9" class="empty">Giỏ hàng đang trống.${canEdit?` Bấm "Thêm căn" để nhập căn đầu tiên, hoặc <button class="btn sm" id="seed">nạp 48 căn mẫu</button> để xem thử (nhớ xoá trước khi gửi khách).`:""}</td></tr>`;
+    $("#seed")?.addEventListener("click", seed); return;
+  }
+  $("#units").innerHTML = rows.map(u=>`<tr data-id="${esc(u.id)}">
+    <td><b>${esc(u.code)}</b>${canEdit && PRIV[u.id]?.holder ? `<div class="muted" style="font-size:12px">Nắm: ${esc(PRIV[u.id].holder)}</div>` : ""}</td>
+    <td>${esc(zoneOf(u.zone).name)} <span class="muted">· ${esc(u.tower)}</span></td>
+    <td>${esc(u.type)}</td><td class="num" data-u="m²">${u.area}</td><td class="num" data-u="">Tầng ${u.floor ?? "-"}</td>
+    <td>${esc(u.dir||"-")} <span class="muted">· ${esc(u.view||"-")}</span></td>
+    <td class="price">${fmtPrice(u.price)}</td>
+    <td>${canEdit ? `<select data-status>${Object.entries(ST).map(([k,l])=>opt(k,l,u.status)).join("")}</select>` : `<span class="st ${u.status}">${ST[u.status]}</span>`}</td>
+    <td><div class="acts"><button class="btn sm" data-post>Chép bài đăng</button>${canEdit?`<button class="btn sm" data-edit>Sửa</button><button class="btn sm danger" data-del>Xoá</button>`:""}</div></td>
+  </tr>`).join("") || `<tr><td colspan="9" class="empty">Không có căn phù hợp bộ lọc.</td></tr>`;
+}
+async function seed(){
+  const rows = sampleUnits();
+  if (me.demo) { UNITS = rows.map((u,i)=>({...u,id:"demo"+i})); return renderUnits(); }
+  const { error } = await sb.from("units").insert(rows);
+  if (error) return toast("Không nạp được: "+error.message);
+  UNITS = await loadUnits(); renderUnits(); toast("Đã nạp 48 căn mẫu");
+}
+$("#units").addEventListener("change", async e => {
+  if (!e.target.matches("[data-status]")) return;
+  const id = e.target.closest("tr").dataset.id, status = e.target.value, u = UNITS.find(x=>String(x.id)===id);
+  if (!me.demo) { const { error } = await sb.from("units").update({ status }).eq("id", id); if (error) { e.target.value=u.status; return toast("Không lưu được: "+error.message); } }
+  u.status = status; toast(`${u.code}: ${ST[status]}`);
+});
+$("#units").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b || b.id==="seed") return;
+  const id = b.closest("tr").dataset.id, u = UNITS.find(x=>String(x.id)===id);
+  if (b.hasAttribute("data-post")) {
+    try { await navigator.clipboard.writeText(postText(u, CONTACT)); toast("Đã chép bài đăng, dán vào Zalo/Facebook"); } catch { toast("Trình duyệt chặn chép, bạn thử lại"); }
+  } else if (b.hasAttribute("data-edit")) openForm(u);
+  else if (b.hasAttribute("data-del")) {
+    if (b.dataset.confirm !== "1") { b.dataset.confirm="1"; b.textContent="Bấm lần nữa để xoá"; setTimeout(()=>{ b.dataset.confirm=""; b.textContent="Xoá"; },3000); return; }
+    if (!me.demo) { const { error } = await sb.from("units").delete().eq("id", id); if (error) return toast("Không xoá được: "+error.message); }
+    UNITS = UNITS.filter(x=>x!==u); renderUnits(); toast(`Đã xoá ${u.code}`);
+  }
+});
+let editing = null;
+const F = ["code","zone","tower","type","area","floor","dir","view","price","status","furnish","note"];
+function openForm(u){
+  editing = u || null; $("#formTitle").textContent = u ? `Sửa căn ${u.code}` : "Thêm căn";
+  F.forEach(k => { if (k!=="tower") $("#u_"+k).value = u ? (u[k] ?? "") : (k==="status"?"ok":k==="zone"?ZONES[0].id:""); });
+  if (!u) { $("#u_type").value=TYPES[0].n; $("#u_dir").value=DIRS[0]; $("#u_view").value=VIEWS[0]; $("#u_furnish").value="Bàn giao cơ bản"; }
+  PF.forEach(k => $("#p_"+k).value = (u && PRIV[u.id]?.[k]) || "");
+  fillTowers(u?.tower); $("#unitForm").hidden=false; $("#u_code").focus();
+}
+$("#addBtn").addEventListener("click", ()=>openForm());
+$("#cancelForm").addEventListener("click", ()=>{ $("#unitForm").hidden=true; });
+$("#unitForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const row = {}; F.forEach(k => row[k] = $("#u_"+k).value.trim());
+  row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null;
+  const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
+  if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; }
+  else {
+    const q = editing ? sb.from("units").update(row).eq("id", editing.id).select("id").single() : sb.from("units").insert(row).select("id").single();
+    const { data, error } = await q;
+    if (error) return toast(error.code==="23505" ? "Mã căn này đã có trong giỏ hàng" : "Không lưu được: "+error.message);
+    const { error: e2 } = await sb.from("unit_private").upsert({ unit_id: data.id, ...priv, updated_at: new Date().toISOString() });
+    if (e2) toast("Đã lưu căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message);
+    UNITS = await loadUnits(); await loadPriv();
+  }
+  $("#unitForm").hidden=true; renderUnits(); toast("Đã lưu "+row.code);
+});
+renderUnits();
+
+/* ---------- Nhập nhiều căn từ Excel ---------- */
+const norm = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/gi,"d").toLowerCase().trim();
+const num = s => { s = String(s||"").trim().replace(/\s/g,""); if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,""); return parseFloat(s.replace(",", ".")); };
+function zoneFrom(s){ const n = norm(s); return ZONES.find(z => n && (norm(z.name).includes(n) || n.includes(norm(z.name).replace("the ","")) || n===z.id))?.id; }
+function statusFrom(s){ const n = norm(s); if (!n || /con|ok|trong/.test(n)) return "ok"; if (/giu|hold|coc/.test(n)) return "hold"; if (/ban|sold/.test(n)) return "sold"; return null; }
+let bulkRows = [];
+function parseBulk(){
+  const lines = $("#bulkText").value.split(/\r?\n/).filter(l => l.trim());
+  bulkRows = []; const errs = [];
+  lines.forEach((l, i) => {
+    const c = l.split("\t").map(x => x.trim());
+    if (i === 0 && /ma/.test(norm(c[0])) && isNaN(num(c[4]))) return; // bỏ dòng tiêu đề
+    const zone = zoneFrom(c[1]); let price = num(c[8]); if (price > 100) price = price / 1000; // nhập 3450 (triệu) cũng được
+    const row = { code:c[0], zone, tower:c[2], type:c[3], area:num(c[4]), floor:c[5]?parseInt(c[5]):null, dir:c[6]||null, view:c[7]||null,
+      price, status:statusFrom(c[9]), furnish:c[10]||"Bàn giao cơ bản" };
+    const priv = { holder:c[11]||null, owner_name:c[12]||null, owner_phone:c[13]||null };
+    const bad = [!row.code&&"thiếu mã căn", /\?/.test(row.code||"")&&"chưa có số căn, anh điền thay dấu ??", !zone&&`không hiểu phân khu "${c[1]||""}"`, !row.tower&&"thiếu toà", !row.type&&"thiếu loại căn",
+      !(row.area>0)&&"diện tích sai", !(price>0)&&"giá sai", !row.status&&`không hiểu trạng thái "${c[9]}"`].filter(Boolean);
+    bad.length ? errs.push(`Dòng ${i+1} (${esc(c[0]||"?")}): ${bad.join(", ")}`) : bulkRows.push({ row, priv });
+  });
+  $("#bulkResult").innerHTML = `<div class="msg ${errs.length?"warn":"ok"}">${bulkRows.length} căn hợp lệ.${errs.length?`<br>${errs.length} dòng cần sửa:<br>${errs.map(esc).join("<br>")}`:""}</div>`;
+  $("#bulkSave").disabled = !bulkRows.length; $("#bulkSave").textContent = `Nhập ${bulkRows.length} căn`;
+}
+$("#bulkBtn").addEventListener("click", ()=>{ $("#bulk").hidden=false; $("#bulkText").focus(); });
+$("#bulkClose").addEventListener("click", ()=>{ $("#bulk").hidden=true; });
+$("#bulkPreview").addEventListener("click", parseBulk);
+
+/* ---------- Đọc tin nhóm Zalo ---------- */
+$("#zaloBtn").addEventListener("click", ()=>{ $("#zalo").hidden=false; $("#zaloText").focus(); });
+$("#zaloClose").addEventListener("click", ()=>{ $("#zalo").hidden=true; });
+$("#zaloRead").addEventListener("click", ()=>{
+  const found = parseZalo($("#zaloText").value);
+  if (!found.length) { $("#zaloResult").innerHTML = `<div class="msg warn">Chưa đọc được căn nào. Tin cần có mã toà (ví dụ S9.03, GH3, B5) và giá.</div>`; return; }
+  const tsv = found.map(r => [r.code, zoneOf(r.zone).name, r.tower, r.type, r.area, r.floor, r.dir, r.view, r.price, r.status, r.furnish, r.holder, "", ""].join("\t")).join("\n");
+  $("#bulkText").value = tsv; $("#zalo").hidden = true; $("#zaloText").value = ""; $("#zaloResult").innerHTML = "";
+  $("#bulk").hidden = false; parseBulk(); $("#bulk").scrollIntoView({ block:"start" });
+  toast(`Đọc được ${found.length} căn, anh kiểm tra rồi bấm Nhập`);
+});
+$("#bulkSave").addEventListener("click", async ()=>{
+  $("#bulkSave").disabled = true;
+  if (me.demo) { bulkRows.forEach(({row,priv}) => { const old = UNITS.find(u=>u.code===row.code); const id = old?.id || "demo"+Math.random(); old ? Object.assign(old,row) : UNITS.push({...row,id}); PRIV[id]=priv; }); }
+  else {
+    const { data, error } = await sb.from("units").upsert(bulkRows.map(b=>b.row), { onConflict:"code" }).select("id,code");
+    if (error) { $("#bulkSave").disabled=false; return toast("Không nhập được: "+error.message); }
+    const idOf = Object.fromEntries(data.map(r=>[r.code,r.id]));
+    const privRows = bulkRows.filter(b=>b.priv.holder||b.priv.owner_name||b.priv.owner_phone).map(b=>({ unit_id:idOf[b.row.code], ...b.priv, updated_at:new Date().toISOString() }));
+    if (privRows.length) { const { error:e2 } = await sb.from("unit_private").upsert(privRows); if (e2) toast("Đã nhập căn, nhưng chưa lưu được thông tin nội bộ: "+e2.message); }
+    UNITS = await loadUnits(); await loadPriv();
+  }
+  toast(`Đã nhập ${bulkRows.length} căn`); $("#bulk").hidden=true; $("#bulkText").value=""; $("#bulkResult").innerHTML=""; renderUnits();
+});
+
+/* ---------- Tài khoản (quản trị) ---------- */
+let PEOPLE = [];
+async function loadPeople(){
+  if (me.demo) PEOPLE = [
+    {id:"a",full_name:"Nguyễn Văn A",phone:"0901 234 567",email:"a@example.com",kind:"nhanvien",dept:"zalo",role:"member",status:"pending",created_at:new Date().toISOString()},
+    {id:"b",full_name:"Trần Thị B",phone:"0912 345 678",email:"b@example.com",kind:"khach",dept:null,role:"member",status:"approved",created_at:new Date().toISOString()},
+    {id:"c",full_name:"Lê Văn C",phone:"0987 654 321",email:"c@example.com",kind:"ctv",dept:null,role:"member",status:"approved",created_at:new Date().toISOString()}];
+  else { const { data, error } = await sb.from("profiles").select("*").order("created_at",{ascending:false}); if (error) return toast(error.message); PEOPLE = data; }
+  renderPeople();
+}
+function renderPeople(){
+  const s=$("#pStatus").value, k=$("#pKind").value;
+  const pend = PEOPLE.filter(p=>p.status==="pending").length;
+  $("#pendingCount").hidden=!pend; $("#pendingCount").textContent=pend;
+  $("#people").innerHTML = PEOPLE.filter(p=>(!s||p.status===s)&&(!k||p.kind===k)).map(p=>`<tr data-id="${esc(p.id)}">
+    <td><b>${esc(p.full_name||"-")}</b></td><td>${esc(p.phone||"-")}</td><td class="muted">${esc(p.email||"")}</td>
+    <td><select data-f="kind">${Object.entries(KINDS).map(([v,l])=>opt(v,l,p.kind)).join("")}</select></td>
+    <td><select data-f="dept"><option value="">—</option>${DEPTS.map(d=>opt(d.id,d.name,p.dept)).join("")}</select></td>
+    <td><select data-f="role">${Object.entries(ROLES).map(([v,l])=>opt(v,l,p.role)).join("")}</select></td>
+    <td><select data-f="status">${Object.entries(STATUSES).map(([v,l])=>opt(v,l,p.status)).join("")}</select></td>
+    <td class="muted">${new Date(p.created_at).toLocaleDateString("vi-VN")}</td></tr>`).join("") || `<tr><td colspan="8" class="empty">Chưa có ai.</td></tr>`;
+}
+["#pStatus","#pKind"].forEach(s=>$(s).addEventListener("change",renderPeople));
+$("#people").addEventListener("change", async e => {
+  const f = e.target.dataset.f; if (!f) return;
+  const id = e.target.closest("tr").dataset.id, p = PEOPLE.find(x=>String(x.id)===id), val = e.target.value || null;
+  if (id === me.id && (f==="role"||f==="status")) { e.target.value = p[f]; return toast("Bạn không tự đổi vai trò hay trạng thái của mình được"); }
+  if (!me.demo) { const { error } = await sb.from("profiles").update({ [f]: val }).eq("id", id); if (error) { e.target.value = p[f] ?? ""; return toast("Không lưu được: "+error.message); } }
+  p[f] = val; renderPeople(); toast(`Đã cập nhật ${p.full_name || p.email}`);
+});
+if (isAdmin) loadPeople();
+
+/* ---------- Phòng của tôi ---------- */
+const d = deptOf(me.dept);
+if (d) $("#paneMine").innerHTML = `<div class="panel"><div class="dept-head"><i style="background:${hex(d.color)}"></i><h2>Phòng ${esc(d.name)}</h2></div>
+  <p class="muted" style="margin:0">${esc(d.desc)}</p><ul class="roles">${d.roles.map(r=>`<li><b>${esc(r.t)}</b><span class="muted">${esc(r.d)}</span></li>`).join("")}</ul></div>`;
+</script>
+</body>
+</html>

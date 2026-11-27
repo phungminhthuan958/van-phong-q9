@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đăng nhập · Văn phòng Q9</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Lexend:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+.wrap{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.side{padding:48px max(24px,5vw);display:flex;flex-direction:column;justify-content:flex-end;gap:14px;
+  background:radial-gradient(120% 80% at 20% 10%,rgba(214,167,92,.18),transparent 60%),linear-gradient(160deg,#13242b,#0b1418);border-right:1px solid var(--line)}
+.side h1{font-size:clamp(26px,3.4vw,40px);line-height:1.15;max-width:16ch}
+.side p{color:var(--muted);max-width:46ch;margin:0}
+.side ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;color:var(--muted);font-size:13px}
+.side li::before{content:"";display:inline-block;width:6px;height:6px;border-radius:2px;background:var(--brass);margin-right:8px;vertical-align:middle}
+.formcol{display:flex;align-items:center;justify-content:center;padding:32px 16px}
+.card{width:100%;max-width:400px;display:grid;gap:16px}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:10px 8px;font-family:var(--display);font-weight:600;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--brass)}
+form{display:grid;gap:12px}
+.kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kinds label{border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:13px;cursor:pointer}
+.kinds input{position:absolute;opacity:0;width:1px;height:1px}
+.kinds label:has(input:checked){border-color:var(--brass);background:rgba(214,167,92,.12);font-weight:600}
+.kinds label:has(input:focus-visible){outline:2px solid var(--brass)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{font-size:12.5px;color:var(--muted)}
+.linkbtn{background:none;border:none;color:var(--brass);padding:0;text-decoration:underline;font-size:12.5px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}.side{padding:32px 16px;border-right:none;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="side">
+    <h1>Văn phòng 3D và giỏ hàng Grand Park Q9</h1>
+    <p>Đăng ký tài khoản để xem giỏ hàng căn hộ cập nhật mỗi ngày: giá, toà, tầng, hướng và tình trạng còn hàng.</p>
+    <ul>
+      <li>Khách hàng và cộng tác viên xem giỏ hàng ngay sau khi xác nhận email</li>
+      <li>Nhân viên chờ quản trị duyệt để vào phòng ban</li>
+    </ul>
+  </section>
+
+  <section class="formcol">
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="in" aria-selected="true">Đăng nhập</button>
+        <button class="tab" role="tab" data-tab="up" aria-selected="false">Đăng ký</button>
+      </div>
+      <div id="msg" class="msg" hidden></div>
+
+      <form id="fIn">
+        <label class="f">Email<input id="inEmail" type="email" autocomplete="email" required></label>
+        <label class="f">Mật khẩu<input id="inPass" type="password" autocomplete="current-password" required></label>
+        <button class="btn primary" type="submit">Đăng nhập</button>
+        <div class="small">Quên mật khẩu? <button class="linkbtn" type="button" id="forgot">Gửi email đặt lại</button></div>
+      </form>
+
+      <form id="fUp" hidden>
+        <div class="f">Bạn là
+          <div class="kinds">
+            <label><input type="radio" name="kind" value="khach" checked>Khách hàng</label>
+            <label><input type="radio" name="kind" value="ctv">Cộng tác viên</label>
+            <label><input type="radio" name="kind" value="nhanvien">Nhân viên</label>
+          </div>
+        </div>
+        <label class="f" id="deptWrap" hidden>Phòng ban<select id="upDept"></select></label>
+        <label class="f">Họ và tên<input id="upName" autocomplete="name" required></label>
+        <div class="row2">
+          <label class="f">Số điện thoại<input id="upPhone" type="tel" autocomplete="tel" pattern="[0-9 +.]{9,15}" required></label>
+          <label class="f">Email<input id="upEmail" type="email" autocomplete="email" required></label>
+        </div>
+        <label class="f">Mật khẩu (ít nhất 8 ký tự)<input id="upPass" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="btn primary" type="submit">Đăng ký</button>
+        <div class="small">Thông tin của bạn chỉ dùng để tư vấn căn hộ.</div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script type="module">
+import { DEPTS } from "./data.js";
+import { sb, configured, currentProfile } from "./supa.js";
+const $ = s => document.querySelector(s);
+const appUrl = new URL("app.html", location.href).href;
+function say(text, type="err"){ const m=$("#msg"); m.textContent=text; m.className="msg "+type; m.hidden=false; }
+function tab(t){ document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $("#fIn").hidden=t!=="in"; $("#fUp").hidden=t!=="up"; $("#msg").hidden=true; }
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
+DEPTS.forEach(d=>$("#upDept").insertAdjacentHTML("beforeend",`<option value="${d.id}">${d.name}</option>`));
+document.querySelectorAll("[name=kind]").forEach(r=>r.addEventListener("change",()=>{$("#deptWrap").hidden=document.querySelector("[name=kind]:checked").value!=="nhanvien"}));
+
+if(!configured) say("Web chưa nối máy chủ đăng nhập. Đang ở chế độ xem thử, bấm Đăng nhập để vào xem.","warn");
+
+const VN = {
+  "Invalid login credentials":"Email hoặc mật khẩu chưa đúng.",
+  "Email not confirmed":"Email chưa được xác nhận. Bạn mở hộp thư và bấm vào link xác nhận.",
+  "User already registered":"Email này đã đăng ký. Bạn chuyển sang Đăng nhập nhé.",
+};
+const vn = e => VN[e?.message] || e?.message || "Có lỗi, bạn thử lại giúp.";
+
+async function goIfApproved(){
+  const p = await currentProfile();
+  if(!p) return;
+  if(p.status==="approved") location.replace("app.html");
+  else if(p.status==="pending") say("Tài khoản nhân viên của bạn đang chờ quản trị duyệt. Khi được duyệt bạn đăng nhập lại là vào được.","warn");
+  else { say("Tài khoản này đã bị khoá. Bạn liên hệ quản trị nhé."); await sb.auth.signOut(); }
+}
+if(configured) goIfApproved();
+
+$("#fIn").addEventListener("submit", async e=>{
+  e.preventDefault();
+  if(!configured){ location.href="app.html"; return; }
+  const { error } = await sb.auth.signInWithPassword({ email:$("#inEmail").value.trim(), password:$("#inPass").value });
+  if(error) return say(vn(error));
+  goIfApproved();
+});
+$("#forgot").addEventListener("click", async ()=>{
+  const email=$("#inEmail").value.trim();
+  if(!email) return say("Bạn nhập email vào ô trên rồi bấm lại nhé.","warn");
+  if(!configured) return say("Chế độ xem thử chưa gửi được email.","warn");
+  const { error } = await sb.auth.resetPasswordForEmail(email,{ redirectTo: appUrl });
+  error ? say(vn(error)) : say("Đã gửi email đặt lại mật khẩu. Bạn mở hộp thư để làm tiếp.","ok");
+});
+$("#fUp").addEventListener("submit", async e=>{
+  e.preventDefault();
+  if(!configured) return say("Chế độ xem thử chưa đăng ký được. Khi web nối máy chủ thì đăng ký sẽ hoạt động.","warn");
+  const kind=document.querySelector("[name=kind]:checked").value;
+  const { data, error } = await sb.auth.signUp({
+    email:$("#upEmail").value.trim(), password:$("#upPass").value,
+    options:{ emailRedirectTo: appUrl, data:{ full_name:$("#upName").value.trim(), phone:$("#upPhone").value.trim(), kind, dept: kind==="nhanvien"?$("#upDept").value:null } }
+  });
+  if(error) return say(vn(error));
+  if(!data.session) say("Đăng ký xong. Bạn mở email và bấm link xác nhận để kích hoạt tài khoản."+(kind==="nhanvien"?" Sau đó chờ quản trị duyệt.":""),"ok");
+  else goIfApproved();
+});
+</script>
+</body>
+</html>

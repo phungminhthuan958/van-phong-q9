@@ -1,0 +1,37 @@
+/* Giao diện chung cho trang đăng nhập và trang làm việc. Tông đêm showroom, ánh đèn đồng. */
+:root{
+  --ink:#0f1a1f; --panel:#16242b; --line:#284049; --text:#e8efe9; --muted:#93a9a6; --brass:#d6a75c;
+  --ok:#5fc29a; --hold:#e2b24a; --sold:#d36a5c;
+  --display:"Lexend",system-ui,sans-serif; --body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--ink);color:var(--text);font-family:var(--body);font-size:14px;line-height:1.5;min-height:100vh}
+a{color:var(--brass)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance}
+
+.btn{border-radius:8px;padding:8px 14px;border:1px solid var(--line);background:transparent;text-decoration:none;color:var(--text);display:inline-flex;align-items:center;gap:6px;font-size:13.5px}
+.btn:hover{border-color:var(--brass)}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:var(--ink);font-weight:600}
+.btn.danger{color:var(--sold);border-color:rgba(211,106,92,.5)}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:default}
+
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+input,select,textarea{background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
+input:focus,select:focus{border-color:var(--brass);outline:none}
+
+.msg{font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--line)}
+.msg.err{color:#f2b2a8;border-color:rgba(211,106,92,.5);background:rgba(211,106,92,.08)}
+.msg.ok{color:#bfe8d6;border-color:rgba(95,194,154,.5);background:rgba(95,194,154,.08)}
+.msg.warn{color:var(--hold);border-color:rgba(226,178,74,.4);background:rgba(226,178,74,.08)}
+
+.st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.st.ok,.st.approved{color:var(--ok)} .st.hold,.st.pending{color:var(--hold)} .st.sold,.st.blocked{color:var(--sold)}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--ink);padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;z-index:20}
