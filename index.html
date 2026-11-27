@@ -525,6 +525,44 @@ const logoG=new THREE.Group();scene.add(logoG);
   for(let i=0;i<N;i++){const m=flat(new THREE.Mesh(new THREE.PlaneGeometry(W,H),sideM));m.position.y=Y0+i*STEP;logoG.add(m)}
   const face=flat(new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:front,alphaTest:.5})));face.position.y=Y0+N*STEP;logoG.add(face);
 }
+/* ====== Quầy tiếp khách quanh logo: ai đang đăng nhập thì có một người đại diện đứng quanh bục ======
+   Dùng Realtime Presence (không lưu gì vào cơ sở dữ liệu). Gói tin chỉ có id + loại tài khoản, KHÔNG có tên/SĐT/email.
+   Quản trị thấy tên (tự tra trong profiles), người khác chỉ thấy tên của chính mình. */
+const guestG=new THREE.Group();scene.add(guestG);
+const KIND={khach:{t:"Khách",c:0x4aa3df,css:"#8fd0ff"},ctv:{t:"CTV",c:0x4cbf86,css:"#9be8bf"},nhanvien:{t:"Nhân viên",c:0xd6a75c,css:"#f0cf98"}};
+const givenName=p=>((p?.full_name||"").trim().split(/\s+/).pop()||"");
+let NAMES={};
+function drawGuests(list){
+  guestG.clear();
+  list=[...list].sort((a,b)=>(b.id===me.id)-(a.id===me.id));
+  const R=[3.35,4.25],PER=[18,24],max=PER[0]+PER[1],shown=list.slice(0,max);
+  shown.forEach((p,i)=>{
+    const ring=i<PER[0]?0:1,k=ring?i-PER[0]:i,n=Math.min(ring?shown.length-PER[0]:shown.length,PER[ring]);
+    const step=n<6?Math.PI/5:Math.PI*2/Math.max(n,PER[ring]),a=-Math.PI/2+(k-(n-1)/2)*step;
+    const x=Math.cos(a)*R[ring],z=Math.sin(a)*R[ring],kd=KIND[p.kind]||KIND.khach,mine=p.id===me.id;
+    const g=new THREE.Group();g.position.set(x,0,z);g.lookAt(0,0,0);guestG.add(g);
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(.16,.2,.62,16),M(kd.c,{roughness:.7}));body.position.y=.5;body.castShadow=true;g.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.14,16,12),M(0xe2c4a6,{roughness:.8}));head.position.y=.96;head.castShadow=true;g.add(head);
+    if(mine){const r=new THREE.Mesh(new THREE.TorusGeometry(.32,.03,8,32),new THREE.MeshBasicMaterial({color:0xd6a75c}));r.rotation.x=Math.PI/2;r.position.y=.03;g.add(r)}
+    const role=p.role==="admin"?"Quản trị":p.kind==="nhanvien"?(DEPTS.find(d=>d.id===p.dept)?.name||kd.t):kd.t;
+    const nm=mine?givenName(me):(me.role==="admin"?givenName(NAMES[p.id]):"");
+    const l=label((mine?"Bạn":"")+(nm?(mine?" · ":"")+nm:"")+((mine||nm)?" · ":"")+role,mine?"#f0cf98":kd.css,true);
+    l.position.set(x,1.4,z);l.scale.multiplyScalar(mine?.75:.6);guestG.add(l);
+  });
+  if(list.length>max){const l=label(`+${list.length-max} người nữa`,"#e8efe9",true);l.position.set(0,1.6,-4.6);l.scale.multiplyScalar(.45);guestG.add(l)}
+  const c=document.querySelector("#onlineCount");if(c)c.textContent=list.length;
+}
+const myCard={id:me.id,kind:me.kind,dept:me.kind==="nhanvien"?me.dept:null,role:me.role==="admin"?"admin":"member"};
+if(me.demo){me.id=myCard.id="demo";drawGuests([myCard,{id:"a",kind:"khach"},{id:"b",kind:"khach"},{id:"c",kind:"ctv"},{id:"d",kind:"ctv"},{id:"e",kind:"khach"},{id:"f",kind:"nhanvien",dept:"zalo"}])}
+else if(sb){
+  drawGuests([myCard]);
+  if(me.role==="admin"){const {data}=await sb.from("profiles").select("id,full_name");(data||[]).forEach(r=>NAMES[r.id]=r)}
+  const lobby=sb.channel("le-tan",{config:{presence:{key:me.id}}});
+  const sync=()=>{const st=lobby.presenceState(),seen={};Object.values(st).flat().forEach(p=>{if(p.id)seen[p.id]=p});seen[me.id]=myCard;drawGuests(Object.values(seen))};
+  lobby.on("presence",{event:"sync"},sync).on("presence",{event:"join"},async({newPresences})=>{
+    if(me.role==="admin"&&newPresences?.some(p=>p.id&&!NAMES[p.id])){const {data}=await sb.from("profiles").select("id,full_name");(data||[]).forEach(r=>NAMES[r.id]=r)}sync()})
+    .subscribe(st=>{if(st==="SUBSCRIBED")lobby.track(myCard)});
+}
 /* Ghế sofa chờ + bàn tư vấn */
 const sofaM=M(0x46555c,{roughness:.95});
 function sofa(x,z,rot){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);box(2.2,.45,.9,sofaM,0,.25,0,g);box(2.2,.6,.2,sofaM,0,.75,-.35,g);box(.2,.35,.9,sofaM,-1.1,.6,0,g);box(.2,.35,.9,sofaM,1.1,.6,0,g)}

@@ -69,6 +69,23 @@ main>section{min-width:0;display:grid;gap:14px}
 .btn.star.on{color:var(--ink);background:var(--brass);border-color:var(--brass);font-weight:600}
 .hotchk{display:flex;gap:10px;align-items:center;font-size:13.5px;padding:10px 12px;border:1px solid rgba(214,167,92,.45);border-radius:10px;background:rgba(214,167,92,.08);cursor:pointer}
 .hotchk input{width:20px;height:20px;flex:none;accent-color:var(--brass)}
+/* Xem chi tiết căn */
+#units tr[data-id]{cursor:pointer}
+#units tr[data-id]:hover td{background:rgba(214,167,92,.05)}
+dialog.view{border:1px solid var(--line);border-radius:14px;background:var(--panel,#13232a);color:var(--text);padding:0;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
+dialog.view::backdrop{background:rgba(0,0,0,.6)}
+.vw-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:inherit;z-index:1}
+.vw-head h3{margin:0;font-size:18px}
+.vw-body{padding:14px 16px;display:grid;gap:14px}
+.vw-main{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#0b1418}
+.vw-thumbs{display:flex;gap:6px;overflow-x:auto}
+.vw-thumbs img{width:64px;height:48px;object-fit:cover;border-radius:6px;border:2px solid transparent;cursor:pointer;flex:none}
+.vw-thumbs img.on{border-color:var(--brass)}
+.vw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 14px;margin:0}
+.vw-grid div{display:grid;gap:2px}.vw-grid dt{font-size:12px;color:var(--muted)}.vw-grid dd{margin:0;font-weight:500}
+.vw-priv{border:1px dashed rgba(214,167,92,.5);border-radius:10px;padding:10px 12px}
+.vw-priv b{font-size:12.5px;color:var(--brass)}
+.vw-acts{display:flex;flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body>
@@ -196,6 +213,7 @@ main>section{min-width:0;display:grid;gap:14px}
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
 import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus } from "./data.js?v=20261127";
 import { CONTACT } from "./config.js";
@@ -259,6 +277,7 @@ function renderUnits(){
     <td class="price">${fmtPrice(u.price,u.deal)}${u.tier?`<div class="muted" style="font-size:12px;font-weight:400">${esc(TIERS[u.tier]||"")}</div>`:""}</td>
     <td>${canEdit ? `<select data-status>${Object.entries(ST).map(([k,l])=>opt(k,l,u.status)).join("")}</select>` : `<span class="st ${u.status}">${ST[u.status]}</span>`}</td>
     <td><div class="acts">${canEdit?`<button class="btn sm star${u.hot?" on":""}" data-hot aria-pressed="${!!u.hot}" title="Bật để hiện căn này ở giỏ hàng văn phòng 3D">★ Giá tốt</button><button class="btn sm" data-edit>Sửa</button>`:(u.hot?`<span class="st ok">★ Giá tốt</span>`:"")}<details class="dd"><summary class="btn sm">Thao tác</summary><div class="dd-menu">
+      <button data-view><i>🔍</i>Xem chi tiết</button>
       <button data-post><i>📋</i>Chép bài đăng</button>
       <button data-share="zalo"><i>💬</i>Chia sẻ qua Zalo</button>
       <button data-share="messenger"><i>✉️</i>Chia sẻ qua Messenger</button>
@@ -287,6 +306,7 @@ $("#units").addEventListener("click", async e => {
     if (!me.demo) { const { error } = await sb.from("units").update({ hot }).eq("id", id); if (error) return toast("Không lưu được: "+error.message); }
     u.hot = hot; renderUnits(); toast(hot ? `${u.code}: đã đưa lên văn phòng 3D` : `${u.code}: đã gỡ khỏi văn phòng 3D`);
   }
+  else if (b.hasAttribute("data-view")) openView(u);
   else if (b.dataset.share) shareUnit(u, CONTACT, b.dataset.share, toast);
   else if (b.hasAttribute("data-post")) {
     toast(await copyText(postText(u, CONTACT)) ? "Đã chép bài đăng, dán vào Zalo/Facebook" : "Trình duyệt chặn chép, bạn thử lại");
@@ -377,6 +397,44 @@ $("#unitForm").addEventListener("submit", async e => {
 });
 renderUnits();
 initMenus();
+/* ====== Bấm vào một dòng để xem đầy đủ thông tin căn ====== */
+let VIEWING=null;
+function openView(u){
+  VIEWING=u; const ph=u.photos||[], pv=PRIV[u.id]||{};
+  $("#vwTitle").textContent=`${u.code}${u.deal==="thue"?" · Cho thuê":""}`;
+  const row=(k,v)=>v||v===0?`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`:"";
+  $("#vwBody").innerHTML=`
+    ${ph.length?`<img class="vw-main" id="vwMain" src="${esc(ph[0])}" alt="Ảnh căn ${esc(u.code)}">${ph.length>1?`<div class="vw-thumbs">${ph.map((x,i)=>`<img src="${esc(x)}" data-i="${i}" class="${i?"":"on"}" alt="">`).join("")}</div>`:""}`:`<div class="muted">Căn này chưa có ảnh.${canEdit?" Bấm Sửa để thêm ảnh.":""}</div>`}
+    <dl class="vw-grid">
+      ${row("Giá",fmtPrice(u.price,u.deal))}${row("Mức giá",TIERS[u.tier])}${row("Trạng thái",ST[u.status])}
+      ${row("Phân khu",zoneOf(u.zone).name)}${row("Toà",u.tower)}${row("Loại căn",u.type)}
+      ${row("Diện tích",u.area?u.area+" m²":"")}${row("Tầng",u.floor)}${row("Hướng",u.dir)}
+      ${row("View",u.view)}${row("Nội thất",u.furnish)}${row("Văn phòng 3D",u.hot?"★ Đang hiện (Giá tốt)":"Không hiện")}
+    </dl>
+    ${u.note?`<div><div class="muted" style="font-size:12px">Ghi chú</div><div style="white-space:pre-wrap">${esc(u.note)}</div></div>`:""}
+    ${canEdit&&Object.values(pv).some(Boolean)?`<div class="vw-priv"><b>Nội bộ (khách và CTV không thấy)</b><dl class="vw-grid" style="margin-top:6px">
+      ${row("Người nắm hàng",pv.holder)}${row("Chủ nhà",pv.owner_name)}${row("SĐT chủ nhà",pv.owner_phone)}${row("Người đăng tin",pv.poster_name)}${row("SĐT người đăng",pv.poster_phone)}${row("Ghi chú nội bộ",pv.note)}</dl></div>`:""}
+    ${u.updated_at?`<div class="muted" style="font-size:12px">Cập nhật ${new Date(u.updated_at).toLocaleString("vi-VN")}</div>`:""}
+    <div class="vw-acts">${canEdit?`<button class="btn primary sm" data-vw="edit">Sửa căn</button>`:""}<button class="btn sm" data-vw="post">📋 Chép bài đăng</button><button class="btn sm" data-vw="zalo">💬 Gửi Zalo</button><button class="btn sm" data-vw="messenger">✉️ Messenger</button></div>`;
+  const d=$("#view"); d.showModal ? d.showModal() : d.setAttribute("open","");
+}
+const closeView=()=>{const d=$("#view"); d.close ? d.close() : d.removeAttribute("open");};
+$("#vwClose").addEventListener("click",closeView);
+$("#view").addEventListener("click",async e=>{
+  if(e.target===e.currentTarget) return closeView();
+  const t=e.target.closest(".vw-thumbs img"); if(t){ $("#vwMain").src=t.src; e.currentTarget.querySelectorAll(".vw-thumbs img").forEach(i=>i.classList.toggle("on",i===t)); return; }
+  if(e.target.id==="vwMain") return window.open(e.target.src,"_blank","noopener");
+  const b=e.target.closest("[data-vw]"); if(!b) return; const u=VIEWING, a=b.dataset.vw;
+  if(a==="edit"){ closeView(); openForm(u); $("#unitForm").scrollIntoView({behavior:"smooth",block:"start"}); }
+  else if(a==="post") toast(await copyText(postText(u, CONTACT)) ? "Đã chép bài đăng" : "Trình duyệt chặn chép, bạn thử lại");
+  else shareUnit(u, CONTACT, a, toast);
+});
+$("#units").addEventListener("click", e => {
+  if (e.target.closest("button,select,details,input,a,label")) return;
+  const tr=e.target.closest("tr[data-id]"); if(!tr) return;
+  const u=UNITS.find(x=>String(x.id)===tr.dataset.id); if(u) openView(u);
+});
+
 /* Đồng bộ: người khác thêm/sửa/xoá căn thì bảng tự cập nhật */
 if (sb && !me.demo) {
   let t; const reload = async () => { const d = await loadUnits(); if (!d) return; UNITS = d; await loadPriv(); renderUnits(); };
