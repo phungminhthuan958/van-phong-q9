@@ -28,8 +28,21 @@ export const ZONES = [
     tf:{"A":[28,"T"],"B":[28,"T"],"C":[28,"T"],"D1":[30,"T"],"D2":[30,"T"],"E1":[30,"T"],"E2":[30,"T"]} },
 ];
 ZONES.forEach(z => z.towers = Object.keys(z.tf));
-// Masteri Centre Point và LUMIÈRE trùng tên block (A, B, C...), nên mã căn có tiền tố để không trùng: MCP-A-1207, LB-A-1207
-export const CODE_PRE = { masteri:"MCP-", lumiere:"LB-" };
+/* Mẫu mã căn chuẩn (anh Thuận chốt 27/11): TOÀ.TẦNG.CĂN, tầng và căn luôn 2 chữ số.
+   VD: S1.02.03.04 · S10.03.09.23 · BS10.12.32.09 · GH1.21.32 · E1.22.11 · OS1.23.21 · BE2.14.04
+   Masteri và Lumière trùng tên toà (A, B, E1...) nên phân biệt bằng phân khu (zone), không thêm tiền tố. */
+export const CODE_RE = /^[A-Z]{1,3}\d{0,2}(\.\d{1,2})?\.\d{2}\.\d{2}$/;
+export function normCode(c){
+  let s = String(c||"").trim().toUpperCase().replace(/\s+/g,"").replace(/^(MCP|LB)-/,"").replace(/,/g,".");
+  const old = s.match(/^(.+)-(\d{1,2})(\d{2})$/);                      // mẫu cũ S1.06-1713 → S1.06.17.13
+  if (old) s = `${old[1]}.${old[2]}.${old[3]}`;
+  s = s.replace(/-/g,".").replace(/^OP(?=\d)/,"OS").replace(/^B(?=\d)/,"BE");
+  const p = s.split(".");
+  if (p.length >= 3 && p.slice(-2).every(x=>/^\d{1,2}$/.test(x))) { p[p.length-1]=p.at(-1).padStart(2,"0"); p[p.length-2]=p.at(-2).padStart(2,"0"); }
+  return p.join(".");
+}
+export const codeOK = c => CODE_RE.test(c);
+export const codeParts = c => { const p = String(c||"").split("."); return p.length>=3 ? { tower:p.slice(0,-2).join("."), floor:+p.at(-2), no:p.at(-1) } : null; };
 export const towerInfo = t => { for (const z of ZONES) if (z.tf[t]) return { zone:z, floors:z.tf[t][0], shape:z.tf[t][1] }; return null; };
 export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59,70]},{n:"2PN+",a:[69,76]},{n:"3PN",a:[80,98]}];
 export const DIRS = ["Đông Nam","Tây Bắc","Đông Bắc","Tây Nam","Nam","Bắc","Đông","Tây"];
@@ -112,7 +125,7 @@ export function sampleUnits() {
       const floor = 3 + Math.floor(rnd() * (z.tf[t][0] - 3)), no = 1 + Math.floor(rnd() * 20);
       const ppm = z.ppm[0] + rnd() * (z.ppm[1] - z.ppm[0]);
       const r = rnd(), status = r < .6 ? "ok" : r < .82 ? "hold" : "sold";
-      out.push({ code:`${CODE_PRE[z.id]||""}${t}-${String(floor).padStart(2,"0")}${String(no).padStart(2,"0")}`, zone:z.id, tower:t, type:ty.n, area,
+      out.push({ code:`${t}.${String(floor).padStart(2,"0")}.${String(no).padStart(2,"0")}`, zone:z.id, tower:t, type:ty.n, area,
         floor, dir:pick(DIRS), view:pick(VIEWS), price:Math.round(area * ppm / 10) * 10 / 1000, status,
         furnish: rnd() < .5 ? "Bàn giao cơ bản" : "Full nội thất" });
     }
@@ -122,7 +135,7 @@ export function sampleUnits() {
 
 // Đọc tin nhắn dán từ nhóm Zalo nguồn hàng → danh sách căn (cần người kiểm tra lại trước khi nhập).
 const DIR_WORDS = [["đông nam","Đông Nam"],["đông bắc","Đông Bắc"],["tây nam","Tây Nam"],["tây bắc","Tây Bắc"],["đn","Đông Nam"],["đb","Đông Bắc"],["tn","Tây Nam"],["tb","Tây Bắc"],["đông","Đông"],["tây","Tây"],["nam","Nam"],["bắc","Bắc"]];
-function zoneOfTower(t, b=""){
+export function zoneOfTower(t, b=""){
   if (/lumi[eè]re/.test(b) && /^(A|B|C|D[12]|E[12])$/i.test(t)) return "lumiere";
   const u=t.toUpperCase(), n=parseInt(u.replace(/^S/,""));
   if (/^S\d/.test(u)) return n<=5 ? "rainbow" : "origami";
@@ -160,7 +173,7 @@ export function parseZalo(text){
     const furnish = /full|nội thất đầy đủ|ntđđ/.test(b) ? "Full nội thất" : "Bàn giao cơ bản";
     const status = /đã cho thuê|đã thuê/.test(b) ? "rented" : /đã bán|đã cọc|đã chốt|out\b/.test(b) ? (/cọc/.test(b) ? "hold" : "sold") : "ok";
     const phone = (raw.match(/(?:\+?84|0)[\s.]?\d{2,3}[\s.]?\d{3}[\s.]?\d{3,4}/) || [""])[0].replace(/[\s.]/g,"");
-    const code = (CODE_PRE[zone]||"") + (num ? `${tower}-${String(num).padStart(4,"0")}` : `${tower}-??`);
+    const code = num ? `${tower}.${String(num).padStart(4,"0").slice(0,2)}.${String(num).padStart(4,"0").slice(2)}` : `${tower}.??.??`;
     out.push({ code, zone, tower, type, area: area ? area.replace(".",",") : "", floor: floor ?? "", dir, view,
       price: price ? String(Math.round(price*100)/100).replace(".",",") : "", status: ST[status], furnish, holder: phone, raw });
   }

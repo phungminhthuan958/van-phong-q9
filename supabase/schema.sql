@@ -587,3 +587,43 @@ begin
   end if;
 end $$;
 grant execute on function public.set_unit_pass(uuid, text) to authenticated;
+
+-- 23. (2026-11-27) Mã căn theo mẫu chuẩn TOÀ.TẦNG.CĂN (vd S1.02.03.04, BS10.12.32.09, GH1.21.32, E1.22.11).
+--     Masteri và Lumière trùng tên toà nên mã căn là duy nhất theo (phân khu, mã, thuê/bán).
+alter table public.units drop constraint if exists units_code_deal_key;
+update public.units set code = regexp_replace(code, '^(MCP|LB)-', '') where code ~ '^(MCP|LB)-';
+update public.units u set code = s.m[1] || '.' || lpad(s.m[2], 2, '0') || '.' || s.m[3]
+  from (select id, regexp_match(upper(code), '^(.+)-(\d{1,2})(\d{2})$') as m from public.units) s
+  where s.id = u.id and s.m is not null;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'units_zone_code_deal_key') then
+    alter table public.units add constraint units_zone_code_deal_key unique (zone, code, deal);
+  end if;
+end $$;
+create or replace function public.save_unit(p_id uuid, p jsonb, p_force boolean default false) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  rid uuid := p_id;
+  cols text;
+  q jsonb := p - 'id' - 'updated_by' - 'updated_at' - 'created_at';
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  if p_force and p_id is not null and public.is_admin() then perform set_config('q9.force_price', '1', true); end if;
+  if rid is null and q ? 'code' then
+    select id into rid from units where code = q->>'code' and deal = coalesce(q->>'deal', 'ban')
+      and (not (q ? 'zone') or zone = q->>'zone') limit 1;
+  end if;
+  -- Sales/Admin sửa đúng căn (có p_id) thì được đổi mã; CTV/khách không bao giờ được đổi mã (họ chỉ thấy mã che)
+  if rid is not null and (p_id is null or public.is_ctv()) then q := q - 'code' - 'deal'; end if;
+  select string_agg(quote_ident(k), ',') into cols from jsonb_object_keys(q) k
+    where k in (select column_name from information_schema.columns where table_schema = 'public' and table_name = 'units');
+  if rid is null then
+    if cols is null then raise exception 'Thiếu thông tin căn'; end if;
+    execute format('insert into units (%s) select %s from jsonb_populate_record(null::units, $1) returning id', cols, cols) using q into rid;
+  elsif cols is not null then
+    execute format('update units set (%s) = (select %s from jsonb_populate_record(null::units, $1)) where id = $2', cols, cols) using q, rid;
+  end if;
+  perform set_config('q9.force_price', '', true);
+  return rid;
+end $$;
+grant execute on function public.save_unit(uuid, jsonb, boolean) to authenticated;

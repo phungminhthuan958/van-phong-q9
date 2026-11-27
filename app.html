@@ -142,7 +142,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
     <form class="panel" id="unitForm" hidden>
       <h3 id="formTitle">Thêm căn</h3>
       <div class="grid">
-        <label class="f">Mã căn<input id="u_code" required placeholder="S9.03-1205 · MCP-A-1207 · LB-D1-1508"></label>
+        <label class="f">Mã căn<input id="u_code" required placeholder="VD: S1.02.03.04 · BS10.12.32.09 · GH1.21.32 · E1.22.11"></label>
         <label class="f">Thuê / bán<select id="u_deal"><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
         <label class="f">Phân khu<select id="u_zone"></select></label>
         <label class="f">Toà<select id="u_tower"></select></label>
@@ -225,7 +225,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList } from "./data.js?v=20261127m";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower } from "./data.js?v=20261127n";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -285,7 +285,14 @@ ZONES.forEach(z => { $("#fZone").insertAdjacentHTML("beforeend", opt(z.id,z.name
 TYPES.forEach(t => $("#u_type").insertAdjacentHTML("beforeend", opt(t.n,t.n)));
 DIRS.forEach(d => $("#u_dir").insertAdjacentHTML("beforeend", opt(d,d)));
 VIEWS.forEach(v => $("#u_view").insertAdjacentHTML("beforeend", opt(v,v)));
-const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); $("#u_tower").innerHTML = z.towers.map(t=>opt(t,t,sel)).join(""); };
+const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); const ts = sel && !z.towers.includes(sel) ? [...z.towers, sel] : z.towers; $("#u_tower").innerHTML = ts.map(t=>opt(t,t,sel)).join(""); };
+// Gõ mã căn xong: tự chuẩn hoá theo mẫu TOÀ.TẦNG.CĂN, tự chọn phân khu, toà, tầng
+$("#u_code").addEventListener("change", () => {
+  const c = normCode($("#u_code").value); $("#u_code").value = c; const cp = codeParts(c); if (!cp) return;
+  const cur = ZONES.find(z=>z.id===$("#u_zone").value), z = cur?.towers.includes(cp.tower) ? cur : (ZONES.find(z=>z.towers.includes(cp.tower)) || ZONES.find(z=>z.id===zoneOfTower(cp.tower)) || cur);
+  if (z) { $("#u_zone").value = z.id; fillTowers(cp.tower); }
+  if (cp.floor) $("#u_floor").value = cp.floor;
+});
 $("#u_zone").addEventListener("change", ()=>fillTowers()); fillTowers();
 ["#q","#fZone","#fStatus","#fHot","#fDeal","#fPass"].forEach(s=>$(s).addEventListener("input",renderUnits));
 const setPriceLbl = () => { const t=$("#u_deal").value==="thue"; $("#priceLbl").textContent = t ? "Giá thuê (triệu/tháng)" : "Giá (tỷ)"; };
@@ -418,6 +425,7 @@ $("#unitForm").addEventListener("submit", async e => {
   row.photos = PHOTOS; row.hot = $("#u_hot").checked;
   row.area=+row.area; row.price=+row.price; row.floor=row.floor?+row.floor:null; row.note=row.note||null; row.tier=row.tier||null;
   const priv = {}; PF.forEach(k => priv[k] = $("#p_"+k).value.trim() || null);
+  if (!(HIDE && editing)) { row.code = normCode(row.code); if (!codeOK(row.code)) return toast("Mã căn chưa đúng mẫu TOÀ.TẦNG.CĂN, ví dụ S1.02.03.04, BS10.12.32.09, GH1.21.32, E1.22.11"); }
   const pass = $("#u_pass").value.trim(), oldPass = (editing && PASS[editing.id]) || "";
   const passChanged = pass !== oldPass && (pass || SEE_PASS);
   if (me.demo) { const id = editing?.id || "demo"+Date.now(); editing ? Object.assign(editing,row) : UNITS.push({...row,id}); PRIV[id] = priv; if (passChanged) { PASS[id] = pass; (editing||UNITS.find(x=>x.id===id)).has_pass = !!pass; } }
@@ -514,10 +522,10 @@ function parseBulk(){
     const c = l.split("\t").map(x => x.trim());
     if (i === 0 && /ma/.test(norm(c[0])) && isNaN(num(c[4]))) return; // bỏ dòng tiêu đề
     const zone = zoneFrom(c[1]); let price = num(c[8]); if (price > 100) price = price / 1000; // nhập 3450 (triệu) cũng được
-    const row = { code:c[0], zone, tower:c[2], type:c[3], area:num(c[4]), floor:c[5]?parseInt(c[5]):null, dir:c[6]||null, view:c[7]||null,
+    const row = { code:normCode(c[0]), zone, tower:c[2], type:c[3], area:num(c[4]), floor:c[5]?parseInt(c[5]):null, dir:c[6]||null, view:c[7]||null,
       price, status:statusFrom(c[9]), furnish:c[10]||"Bàn giao cơ bản" };
     const priv = { holder:c[11]||null, owner_name:c[12]||null, owner_phone:c[13]||null };
-    const bad = [!row.code&&"thiếu mã căn", /\?/.test(row.code||"")&&"chưa có số căn, anh điền thay dấu ??", !zone&&`không hiểu phân khu "${c[1]||""}"`, !row.tower&&"thiếu toà", !row.type&&"thiếu loại căn",
+    const bad = [!row.code&&"thiếu mã căn", /\?/.test(row.code||"")&&"chưa có số căn, anh điền thay dấu ??", row.code&&!/\?/.test(row.code)&&!codeOK(row.code)&&`mã "${row.code}" chưa đúng mẫu TOÀ.TẦNG.CĂN (vd S1.02.03.04)`, !zone&&`không hiểu phân khu "${c[1]||""}"`, !row.tower&&"thiếu toà", !row.type&&"thiếu loại căn",
       !(row.area>0)&&"diện tích sai", !(price>0)&&"giá sai", !row.status&&`không hiểu trạng thái "${c[9]}"`].filter(Boolean);
     bad.length ? errs.push(`Dòng ${i+1} (${esc(c[0]||"?")}): ${bad.join(", ")}`) : bulkRows.push({ row, priv });
   });
