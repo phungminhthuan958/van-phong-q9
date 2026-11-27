@@ -133,3 +133,7 @@ create policy "unit_photos_update" on storage.objects for update to authenticate
   using (bucket_id = 'unit-photos' and public.can_edit_units()) with check (bucket_id = 'unit-photos' and public.can_edit_units());
 create policy "unit_photos_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'unit-photos' and public.can_edit_units());
+-- Cần quyền đọc danh sách file thì nút xoá ảnh mới xoá được file trong kho
+drop policy if exists "unit_photos_select" on storage.objects;
+create policy "unit_photos_select" on storage.objects for select to authenticated
+  using (bucket_id = 'unit-photos' and public.can_edit_units());
