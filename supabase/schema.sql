@@ -427,3 +427,9 @@ begin
           case when first_user or k <> 'sales' then 'approved' else 'pending' end, sref, sphone);
   return new;
 end $$;
+
+-- 18. (2026-11-27) Khách hàng và chủ nhà cũng KHÔNG xem mã căn (như CTV). Chỉ Sales, nhân viên, Admin thấy mã căn.
+create or replace function public.is_ctv() returns boolean   -- tên cũ, nghĩa: tài khoản không được xem mã căn
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where id = auth.uid() and kind in ('ctv','khach','chunha') and role <> 'admin')
+$$;

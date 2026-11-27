@@ -204,7 +204,7 @@ const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
 const SHOW = u => u.hot && u.status !== "sold";
 const IS_SAMPLE = !!me.demo;
-const HIDE_CODE = me.kind==="ctv" && me.role!=="admin";
+const HIDE_CODE = ["ctv","khach","chunha"].includes(me.kind) && me.role!=="admin"; // Khách, chủ nhà, CTV không xem mã căn
 setHideCode(HIDE_CODE);
 // Sales/CTV gửi căn: bài đăng ghi SĐT của chính sales đó (không ghi Admin) để giữ khách cho sales.
 // Khách do sales giới thiệu: nút liên hệ trên web cũng là sales đó.
@@ -848,7 +848,7 @@ let lastT=performance.now();
   updateAgents(reduce?0:dt,now/1000);
   controls.update();renderer.render(scene,camera)})();
 /* Khách và cộng tác viên chỉ xem giỏ hàng, không xem thông tin phòng ban nội bộ */
-if(!(me.kind==="nhanvien"||me.role==="admin")){document.querySelector('[data-tab="dept"]').hidden=true;showTab("cart")}
+if(!(["nhanvien","sales","ctv"].includes(me.kind)||me.role==="admin")){document.querySelector('[data-tab="dept"]').hidden=true;showTab("cart")}
 openFromHash();
 </script>
 </body>
