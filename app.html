@@ -109,7 +109,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
       <label class="f">Thuê / bán<select id="fDeal"><option value="">Tất cả</option><option value="ban">Bán</option><option value="thue">Cho thuê</option></select></label>
       <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
       <label class="f">Văn phòng 3D<select id="fHot"><option value="">Tất cả căn</option><option value="1">Chỉ căn giá tốt</option><option value="0">Căn chưa đánh dấu</option></select></label>
-      <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán / Đã cho thuê</option></select></label>
+      <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
       <button class="btn primary" id="addBtn" hidden>+ Nhập 1 căn</button>
       <button class="btn" id="bulkBtn" hidden>Nhập nhiều căn từ Excel</button>
       <button class="btn" id="zaloBtn" hidden>Đọc tin nhóm Zalo</button>
@@ -152,7 +152,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
         <label class="f">View<select id="u_view"></select></label>
         <label class="f"><span id="priceLbl">Giá (tỷ)</span><input id="u_price" type="number" step="0.01" min="0.1" required></label>
         <label class="f">Mức giá<select id="u_tier"><option value="">Chưa xếp</option><option value="tot">Giá tốt</option><option value="thitruong">Giá thị trường</option><option value="cao">Giá cao</option></select></label>
-        <label class="f">Trạng thái<select id="u_status"><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán / Đã cho thuê</option></select></label>
+        <label class="f">Trạng thái<select id="u_status"><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
         <label class="f">Nội thất<select id="u_furnish"><option>Bàn giao cơ bản</option><option>Full nội thất</option></select></label>
         <label class="f">Ghi chú (khách cũng thấy)<input id="u_note"></label>
       </div>
@@ -222,7 +222,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <dialog class="view" id="view"><div class="vw-head"><h3 id="vwTitle"></h3><button class="btn sm" id="vwClose" type="button">Đóng ✕</button></div><div class="vw-body" id="vwBody"></div></dialog>
 <script type="module">
-import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList } from "./data.js?v=20261127h";
+import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList } from "./data.js?v=20261127i";
 import { CONTACT } from "./config.js";
 import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
 const $ = s => document.querySelector(s);
@@ -283,7 +283,7 @@ VIEWS.forEach(v => $("#u_view").insertAdjacentHTML("beforeend", opt(v,v)));
 const fillTowers = sel => { const z = ZONES.find(z=>z.id===$("#u_zone").value); $("#u_tower").innerHTML = z.towers.map(t=>opt(t,t,sel)).join(""); };
 $("#u_zone").addEventListener("change", ()=>fillTowers()); fillTowers();
 ["#q","#fZone","#fStatus","#fHot","#fDeal"].forEach(s=>$(s).addEventListener("input",renderUnits));
-const setPriceLbl = () => { const t=$("#u_deal").value==="thue"; $("#priceLbl").textContent = t ? "Giá thuê (triệu/tháng)" : "Giá (tỷ)"; const o=$("#u_status option[value=sold]"); if(o) o.textContent = t ? "Đã cho thuê" : "Đã bán"; };
+const setPriceLbl = () => { const t=$("#u_deal").value==="thue"; $("#priceLbl").textContent = t ? "Giá thuê (triệu/tháng)" : "Giá (tỷ)"; };
 $("#u_deal").addEventListener("change", setPriceLbl);
 
 function renderUnits(){
@@ -496,7 +496,7 @@ if (sb && !me.demo) {
 const norm = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/gi,"d").toLowerCase().trim();
 const num = s => { s = String(s||"").trim().replace(/\s/g,""); if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,""); return parseFloat(s.replace(",", ".")); };
 function zoneFrom(s){ const n = norm(s); return ZONES.find(z => n && (norm(z.name).includes(n) || n.includes(norm(z.name).replace("the ","")) || n===z.id))?.id; }
-function statusFrom(s){ const n = norm(s); if (!n || /con|ok|trong/.test(n)) return "ok"; if (/giu|hold|coc/.test(n)) return "hold"; if (/ban|sold/.test(n)) return "sold"; return null; }
+function statusFrom(s){ const n = norm(s); if (!n || /con|ok|trong/.test(n)) return "ok"; if (/giu|hold|coc/.test(n)) return "hold"; if (/thue|rent/.test(n)) return "rented"; if (/ban|sold/.test(n)) return "sold"; return null; }
 let bulkRows = [];
 function parseBulk(){
   const lines = $("#bulkText").value.split(/\r?\n/).filter(l => l.trim());

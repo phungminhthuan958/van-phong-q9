@@ -68,7 +68,7 @@ label.f{display:grid;gap:3px;font-size:11px;text-transform:uppercase;letter-spac
 .u-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .u-meta b{color:var(--text);font-weight:500}
 .st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
-.st.ok{color:var(--ok)} .st.hold{color:var(--hold)} .st.sold{color:var(--sold)}
+.st.ok{color:var(--ok)} .st.hold{color:var(--hold)} .st.sold,.st.rented{color:var(--sold)}
 .u-act{display:flex;gap:6px;flex-wrap:wrap}
 .btn{border-radius:6px;padding:6px 10px;font-size:12.5px;border:1px solid var(--line);background:transparent;text-decoration:none;color:var(--text);display:inline-flex;align-items:center}
 .btn.zalo{background:#0068ff;border-color:#0068ff;color:#fff;font-weight:600}
@@ -182,7 +182,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
       <div class="filters">
         <label class="f">Phân khu<select id="fZone"><option value="">Tất cả</option></select></label>
         <label class="f">Loại căn<select id="fType"><option value="">Tất cả</option></select></label>
-        <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán / Đã cho thuê</option></select></label>
+        <label class="f">Trạng thái<select id="fStatus"><option value="">Tất cả</option><option value="ok">Còn hàng</option><option value="hold">Đang giữ chỗ</option><option value="sold">Đã bán</option><option value="rented">Đã cho thuê</option></select></label>
         <label class="f">Sắp xếp<select id="fSort"><option value="price">Giá tăng dần</option><option value="-price">Giá giảm dần</option><option value="area">Diện tích</option></select></label>
       </div>
       <div class="tower-pill" id="towerPill" hidden>Đang lọc toà <b id="towerName"></b> <button id="clearTower">Bỏ lọc</button></div>
@@ -198,11 +198,11 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script type="module">
 import { CONTACT } from "./config.js";
-import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf } from "./data.js?v=20261127h";
+import { ZONES, TYPES, DEPTS, ST, zoneOf, fmtPrice, hex, sampleUnits, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, unitLink, stOf, isDone } from "./data.js?v=20261127i";
 import { sb, requireApproved, loadUnits, signOut, initNotices } from "./supa.js";
 const me = await requireApproved();
 // Giỏ hàng văn phòng 3D chỉ hiện căn được đánh dấu "Giá tốt" ở trang Quản lý (căn đã bán thì ẩn).
-const SHOW = u => u.hot && u.status !== "sold";
+const SHOW = u => u.hot && !isDone(u.status);
 const IS_SAMPLE = !!me.demo;
 const HIDE_CODE = ["ctv","khach","chunha"].includes(me.kind) && me.role!=="admin"; // Khách, chủ nhà, CTV không xem mã căn
 setHideCode(HIDE_CODE);
@@ -274,7 +274,7 @@ function render(){
   if(!UNITS.length){$("#list").innerHTML=`<div class="empty">Hiện chưa có căn giá tốt.<br>Nhắn Zalo <a href="https://zalo.me/${VIEW_CONTACT.phone}" target="_blank" rel="noopener" style="color:var(--brass)">${VIEW_CONTACT.phone}</a> để nhận giỏ hàng đầy đủ.</div>`;return}
   $("#towerPill").hidden=!state.tower; $("#towerName").textContent=state.tower;
   $("#list").innerHTML=rows.length?rows.map(u=>`
-    <article class="unit ${u.status==="sold"?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
+    <article class="unit ${isDone(u.status)?"sold-out":""} ${state.active===u.code?"active":""}" data-code="${u.code}">
       <div class="u-top"><div><div class="u-code">${shownCode(u)}</div><div class="u-zone">${zoneOf(u.zone).name} · Toà ${u.tower}</div></div>
         <div class="u-price">${u.deal==="thue"?"Cho thuê · ":""}${fmtPrice(u.price,u.deal)}</div></div>
       ${photosHtml(u)}
@@ -282,7 +282,7 @@ function render(){
         <span>BC <b>${u.dir}</b></span><span>View <b>${u.view}</b></span>${u.deal==="thue"?"":`<span>~<b>${Math.round(u.price*1000/u.area)}</b> tr/m²</span>`}<span>${u.furnish}</span>
         <span class="st ${u.status}">${stOf(u.status,u.deal)}</span></div>
       <div class="u-act">
-        ${u.status==="sold"?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
+        ${isDone(u.status)?"":`<details class="dd"><summary class="btn zalo">Liên hệ tư vấn</summary><div class="dd-menu">
           <a href="https://zalo.me/${VIEW_CONTACT.phone}" target="_blank" rel="noopener" data-copy="${u.code}"><i>💬</i>Nhắn Zalo ${VIEW_CONTACT.label} ${VIEW_CONTACT.phone}</a>
           <a href="${VIEW_CONTACT.facebook}" target="_blank" rel="noopener" data-copy="${u.code}"><i>✉️</i>Nhắn Messenger</a>
           <a href="tel:${VIEW_CONTACT.phone}"><i>📞</i>Gọi ${VIEW_CONTACT.label} ${VIEW_CONTACT.phone}</a>

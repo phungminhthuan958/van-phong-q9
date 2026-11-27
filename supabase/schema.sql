@@ -527,3 +527,28 @@ begin
   return jsonb_build_object('saved', jsonb_array_length(ids), 'ids', ids, 'rejected', rejected);
 end $$;
 grant execute on function public.import_units(jsonb) to authenticated;
+
+-- 21. (2026-11-27) Thêm trạng thái "Đã cho thuê" (rented) riêng, bên cạnh "Đã bán" (sold). Căn đã cho thuê cũng không tính giá tốt.
+alter table public.units drop constraint if exists units_status_check;
+alter table public.units add constraint units_status_check check (status in ('ok','hold','sold','rented'));
+update public.units set status = 'rented' where status = 'sold' and deal = 'thue';
+create or replace function public.recompute_tiers() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.can_edit_units() then raise exception 'Không có quyền cập nhật giỏ hàng'; end if;
+  with g as (
+    select zone, type, deal, percentile_cont(0.5) within group (order by price / area) as med
+    from units where status not in ('sold','rented') and area > 0 group by zone, type, deal
+  ), r as (
+    select u.id, u.price / u.area as ppm, g.med,
+           row_number() over (partition by u.zone, u.type, u.deal order by u.price / u.area, u.posted_at) as rn
+    from units u join g using (zone, type, deal)
+    where u.status not in ('sold','rented') and u.area > 0
+  )
+  update units u set
+    tier = case when r.rn <= 3 then 'tot' when r.ppm <= r.med * 1.1 then 'thitruong' else 'cao' end,
+    hot  = (r.rn <= 3)
+  from r where u.id = r.id;
+  update units set hot = false where status in ('sold','rented') and hot;
+end $$;
+grant execute on function public.recompute_tiers() to authenticated;

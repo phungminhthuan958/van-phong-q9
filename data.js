@@ -24,10 +24,10 @@ export const towerInfo = t => { for (const z of ZONES) if (z.tf[t]) return { zon
 export const TYPES = [{n:"Studio",a:[28,35]},{n:"1PN+",a:[43,50]},{n:"2PN",a:[59,70]},{n:"2PN+",a:[69,76]},{n:"3PN",a:[80,98]}];
 export const DIRS = ["Đông Nam","Tây Bắc","Đông Bắc","Tây Nam","Nam","Bắc","Đông","Tây"];
 export const VIEWS = ["Nội khu","Công viên 36ha","Hồ bơi","Thành phố","Sông"];
-export const ST = { ok:"Còn hàng", hold:"Đang giữ chỗ", sold:"Đã bán" };
-// Căn cho thuê: "sold" hiển thị là "Đã cho thuê"
-export const stOf = (status, deal) => status==="sold" && deal==="thue" ? "Đã cho thuê" : ST[status];
-export const stList = deal => Object.keys(ST).map(k => [k, stOf(k, deal)]);
+export const ST = { ok:"Còn hàng", hold:"Đang giữ chỗ", sold:"Đã bán", rented:"Đã cho thuê" };
+export const isDone = s => s==="sold" || s==="rented";   // hết hàng: đã bán hoặc đã cho thuê
+export const stOf = status => ST[status] || status;
+export const stList = () => Object.entries(ST);
 export const KINDS = { khach:"Khách hàng", chunha:"Chủ nhà", sales:"Sales", ctv:"Cộng tác viên", nhanvien:"Nhân viên" };
 export const ROLES = { member:"Thành viên", lead:"Trưởng phòng", admin:"Quản trị" };
 export const STATUSES = { pending:"Chờ duyệt", approved:"Đã duyệt", blocked:"Đã chặn" };
@@ -142,7 +142,7 @@ export function parseZalo(text){
     const vm = b.match(/view\s*:?\s*(công viên|hồ bơi|nội khu|sông|thành phố|landmark|trực diện[^,.\n]*)/);
     const view = vm ? vm[1].replace(/^./, c => c.toUpperCase()) : "";
     const furnish = /full|nội thất đầy đủ|ntđđ/.test(b) ? "Full nội thất" : "Bàn giao cơ bản";
-    const status = /đã bán|đã cọc|đã chốt|out\b/.test(b) ? (/cọc/.test(b) ? "hold" : "sold") : "ok";
+    const status = /đã cho thuê|đã thuê/.test(b) ? "rented" : /đã bán|đã cọc|đã chốt|out\b/.test(b) ? (/cọc/.test(b) ? "hold" : "sold") : "ok";
     const phone = (raw.match(/(?:\+?84|0)[\s.]?\d{2,3}[\s.]?\d{3}[\s.]?\d{3,4}/) || [""])[0].replace(/[\s.]/g,"");
     const code = num ? `${tower}-${String(num).padStart(4,"0")}` : `${tower}-??`;
     out.push({ code, zone, tower, type, area: area ? area.replace(".",",") : "", floor: floor ?? "", dir, view,

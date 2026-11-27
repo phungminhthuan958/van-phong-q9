@@ -32,7 +32,7 @@ input:focus,select:focus{border-color:var(--brass);outline:none}
 .msg.warn{color:var(--hold);border-color:rgba(226,178,74,.4);background:rgba(226,178,74,.08)}
 
 .st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
-.st.ok,.st.approved{color:var(--ok)} .st.hold,.st.pending{color:var(--hold)} .st.sold,.st.blocked{color:var(--sold)}
+.st.ok,.st.approved{color:var(--ok)} .st.hold,.st.pending{color:var(--hold)} .st.sold,.st.rented,.st.blocked{color:var(--sold)}
 
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--ink);padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;z-index:20}
 /* Điện thoại: không tự phóng to khi bấm vào ô nhập, không phóng to khi chạm 2 lần */
