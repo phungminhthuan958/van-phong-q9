@@ -9,6 +9,12 @@ const LOGIN_DAY_KEY = "q9LoginDay";
 const vnToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
 export function markLoginToday() { try { localStorage.setItem(LOGIN_DAY_KEY, vnToday()); } catch {} }
 function loggedInToday() { try { return localStorage.getItem(LOGIN_DAY_KEY) === vnToday(); } catch { return true; } }
+// "Ghi nhớ máy này": máy làm việc của Admin / nhân viên phòng ban (kể cả trình duyệt chạy lịch tự động)
+// không phải đăng nhập lại mỗi ngày. Khách, CTV, chủ nhà vẫn đăng nhập mỗi ngày.
+const KEEP_KEY = "q9KeepLogin";
+export function setKeepLogin(on) { try { on ? localStorage.setItem(KEEP_KEY, "1") : localStorage.removeItem(KEEP_KEY); } catch {} }
+function keepLogin() { try { return localStorage.getItem(KEEP_KEY) === "1"; } catch { return false; } }
+const isStaff = p => p && (p.role === "admin" || p.kind === "nhanvien");
 
 // Ghi nhớ sales đã gửi link (?s=...) để khi khách đăng ký thì gắn với sales đó
 try { const s = new URLSearchParams(location.search).get("s"); if (s && /^[0-9a-f-]{36}$/i.test(s)) localStorage.setItem("q9SalesRef", s); } catch {}
@@ -20,9 +26,11 @@ export async function currentProfile() {
   if (/access_token|type=recovery|type=signup/.test(location.hash)) markLoginToday();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return null;
-  if (!loggedInToday()) { await sb.auth.signOut(); return null; }
+  const today = loggedInToday();
+  if (!today && !keepLogin()) { await sb.auth.signOut(); return null; }
   const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
-  if (error) { console.error(error); return { id: session.user.id, email: session.user.email, status: "pending" }; }
+  if (error) { console.error(error); if (!today) { await sb.auth.signOut(); return null; } return { id: session.user.id, email: session.user.email, status: "pending" }; }
+  if (!today) { if (!isStaff(data)) { setKeepLogin(false); await sb.auth.signOut(); return null; } markLoginToday(); }
   return data;
 }
 
@@ -43,7 +51,7 @@ export async function loadUnits(hideCode = false) {
   return data.map(r => ({ ...r, area: +r.area, price: +r.price }));
 }
 
-export async function signOut() { try { localStorage.removeItem(LOGIN_DAY_KEY); } catch {} if (sb) await sb.auth.signOut(); location.replace("login.html"); }
+export async function signOut() { try { localStorage.removeItem(LOGIN_DAY_KEY); localStorage.removeItem(KEEP_KEY); } catch {} if (sb) await sb.auth.signOut(); location.replace("login.html"); }
 
 // ====== Thông báo "đã có nguồn hàng mới" ======
 // Hiện thông báo mới nhất trong ngày (Admin gửi, hoặc lượt nhập hàng buổi sáng tự gửi).

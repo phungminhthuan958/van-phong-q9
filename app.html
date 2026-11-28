@@ -240,7 +240,7 @@ dialog.view::backdrop{background:rgba(0,0,0,.6)}
 <script type="module">
 import { ZONES, TYPES, DIRS, VIEWS, ST, KINDS, DEALS, TIERS, ROLES, STATUSES, DEPTS, deptOf, zoneOf, fmtPrice, esc, hex, postText, sampleUnits, parseZalo, shareUnit, copyText, initMenus, setShareRef, setHideCode, shownCode, stOf, stList, normCode, codeOK, codeParts, zoneOfTower, parseCode, parseOne, makeSearch } from "./data.js?v=20261127s";
 import { CONTACT } from "./config.js";
-import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js";
+import { sb, requireApproved, loadUnits, signOut, initNotices, sendNotice } from "./supa.js?v=20261128a";
 const $ = s => document.querySelector(s);
 let toastT; const toast = t => { const e=$("#toast"); e.textContent=t; e.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>e.hidden=true,2400); };
 const opt = (v,l,sel) => `<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;

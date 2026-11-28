@@ -56,6 +56,7 @@ form{display:grid;gap:12px}
       <form id="fIn">
         <label class="f">Email<input id="inEmail" type="email" autocomplete="email" required></label>
         <label class="f">Mật khẩu<input id="inPass" type="password" autocomplete="current-password" required></label>
+        <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin:2px 0 4px;cursor:pointer"><input id="inKeep" type="checkbox" style="margin-top:3px"> <span>Ghi nhớ máy này (máy làm việc của Admin / nhân viên phòng ban, không phải đăng nhập lại mỗi ngày)</span></label>
         <button class="btn primary" type="submit">Đăng nhập</button>
         <div class="small">Quên mật khẩu? <button class="linkbtn" type="button" id="forgot">Gửi email đặt lại</button></div>
       </form>
@@ -88,7 +89,7 @@ form{display:grid;gap:12px}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="module">
-import { sb, configured, currentProfile, markLoginToday, salesRefFromLink } from "./supa.js";
+import { sb, configured, currentProfile, markLoginToday, salesRefFromLink, setKeepLogin } from "./supa.js?v=20261128a";
 import { CONTACT } from "./config.js";
 const $ = s => document.querySelector(s);
 const appUrl = new URL("app.html", location.href).href;
@@ -129,7 +130,7 @@ $("#fIn").addEventListener("submit", async e=>{
   const { error } = await sb.auth.signInWithPassword({ email:$("#inEmail").value.trim(), password:$("#inPass").value });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
-  markLoginToday(); goIfApproved();
+  markLoginToday(); setKeepLogin($("#inKeep").checked); goIfApproved();
 });
 $("#forgot").addEventListener("click", async ()=>{
   const email=$("#inEmail").value.trim();
