@@ -54,7 +54,7 @@ form{display:grid;gap:12px}
       <div id="msg" class="msg" hidden></div>
 
       <form id="fIn">
-        <label class="f">Email<input id="inEmail" type="email" autocomplete="email" required></label>
+        <label class="f">Email<input id="inEmail" type="email" autocomplete="username" required></label>
         <label class="f">Mật khẩu<input id="inPass" type="password" autocomplete="current-password" required></label>
         <label class="small" style="display:flex;gap:10px;align-items:flex-start;justify-content:flex-start;text-align:left;margin:2px 0 4px;cursor:pointer"><input id="inKeep" type="checkbox" style="margin:3px 0 0;width:18px;height:18px;flex:none"> <span>Ghi nhớ máy này (máy làm việc của Admin / nhân viên phòng ban, không phải đăng nhập lại mỗi ngày)</span></label>
         <button class="btn primary" type="submit">Đăng nhập</button>
@@ -122,6 +122,8 @@ async function goIfApproved(){
   else { say("Tài khoản này đã bị khoá. Bạn liên hệ quản trị nhé."); await sb.auth.signOut(); }
 }
 if(configured) goIfApproved();
+// Nhớ sẵn email lần đăng nhập trước (không lưu mật khẩu: mật khẩu do trình duyệt tự nhớ nếu người dùng chọn Lưu)
+try { const em = localStorage.getItem("q9LastEmail"); if (em) { if (!$("#inEmail").value) $("#inEmail").value = em; $("#inKeep").checked = true; } } catch {}
 
 $("#fIn").addEventListener("submit", async e=>{
   e.preventDefault();
@@ -130,7 +132,9 @@ $("#fIn").addEventListener("submit", async e=>{
   const { error } = await sb.auth.signInWithPassword({ email:$("#inEmail").value.trim(), password:$("#inPass").value });
   delete f.dataset.busy; busy(f,false);
   if(error) return say(vn(error));
-  markLoginToday(); setKeepLogin($("#inKeep").checked); goIfApproved();
+  markLoginToday(); setKeepLogin($("#inKeep").checked);
+  try { localStorage.setItem("q9LastEmail", $("#inEmail").value.trim()); } catch {}
+  goIfApproved();
 });
 $("#forgot").addEventListener("click", async ()=>{
   const email=$("#inEmail").value.trim();
